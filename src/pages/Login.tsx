@@ -24,7 +24,7 @@ export default function Login() {
               <h1 className="mt-4 text-3xl font-semibold text-black sm:text-4xl">
                 Room.
                 <span className="block text-gray-500">
-                  Console d’analyses d’investissement
+                  Your AI-powered analyst
                 </span>
               </h1>
               <p className="mt-4 text-sm text-gray-600">
