@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import CreateDocument from './CreateDocument'
+import ExpertCallAnalysis from './ExpertCallAnalysis'
+import MeetingNote from './MeetingNote'
 import {
   BarChart3,
   Briefcase,
@@ -12,10 +15,18 @@ import {
   Video,
 } from 'lucide-react'
 
+type DashboardDoc = {
+  id: number
+  title: string
+  description: string
+  icon: typeof BarChart3
+  tag: string
+  tagIcon: typeof BarChart3
+  href: string
+}
+
 export default function Dashboard() {
-  const [selectedDoc, setSelectedDoc] =
-    useState<(typeof documentTypes)[number] | null>(null)
-  const documentTypes = [
+  const documentTypes: DashboardDoc[] = [
     {
       id: 1,
       title: 'Analyse de marché',
@@ -62,6 +73,7 @@ export default function Dashboard() {
       href: '/meeting-note',
     },
   ]
+  const [selectedDoc, setSelectedDoc] = useState<DashboardDoc | null>(null)
 
   const activeDeals = [
     {
@@ -81,6 +93,34 @@ export default function Dashboard() {
       date: '19 janvier 2026',
     },
   ]
+
+  useEffect(() => {
+    if (!selectedDoc) {
+      document.body.style.overflow = ''
+      return
+    }
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [selectedDoc])
+
+  const renderModalContent = (doc: DashboardDoc) => {
+    switch (doc.href) {
+      case '/create':
+        return <CreateDocument />
+      case '/expert-call':
+        return <ExpertCallAnalysis />
+      case '/meeting-note':
+        return <MeetingNote />
+      default:
+        return (
+          <div className="text-sm text-gray-600">
+            Contenu indisponible pour ce module.
+          </div>
+        )
+    }
+  }
 
   return (
     <div className="space-y-10">
@@ -189,7 +229,7 @@ export default function Dashboard() {
           <div
             role="dialog"
             aria-modal="true"
-            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+            className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between">
@@ -213,20 +253,8 @@ export default function Dashboard() {
             <p className="mt-3 text-sm text-gray-600">
               {selectedDoc.description}
             </p>
-            <div className="mt-6 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setSelectedDoc(null)}
-                className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-              >
-                Fermer
-              </button>
-              <Link
-                to={selectedDoc.href}
-                className="rounded-md bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900"
-              >
-                Ouvrir
-              </Link>
+            <div className="mt-6 max-h-[70vh] overflow-y-auto pr-2">
+              {renderModalContent(selectedDoc)}
             </div>
           </div>
         </div>
