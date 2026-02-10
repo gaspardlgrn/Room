@@ -615,11 +615,11 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
     );
     const enriched = await Promise.all(
       members.data.map(async (member) => {
-        const userId = member.public_user_data?.user_id;
+        const userId = member.publicUserData?.userId;
         if (!userId) {
           return {
             ...member,
-            email: member.public_user_data?.identifier,
+            email: member.publicUserData?.identifier,
           };
         }
         try {
@@ -627,12 +627,12 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
           const email = user.primaryEmailAddress?.emailAddress;
           return {
             ...member,
-            email: email || member.public_user_data?.identifier,
+            email: email || member.publicUserData?.identifier,
           };
         } catch {
           return {
             ...member,
-            email: member.public_user_data?.identifier,
+            email: member.publicUserData?.identifier,
           };
         }
       })
