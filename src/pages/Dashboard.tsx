@@ -82,45 +82,57 @@ export default function Dashboard() {
   return (
     <div className="space-y-10">
       {/* Page Title */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-950">Accueil</h1>
-          <p className="text-sm text-gray-600">
-            Centralisez vos analyses et documents d’investissement.
-          </p>
+      <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-6 py-6 text-white shadow-sm">
+        <div className="pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl"></div>
+        <div className="pointer-events-none absolute -left-20 -bottom-20 h-56 w-56 rounded-full bg-indigo-500/10 blur-3xl"></div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80">
+              Room Intelligence
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold text-white">
+              Accueil
+            </h1>
+            <p className="mt-2 text-sm text-slate-300">
+              Centralisez vos analyses et documents d’investissement.
+            </p>
+          </div>
+          <Link
+            to="/create"
+            className="inline-flex items-center justify-center rounded-md bg-white/90 px-4 py-2 text-sm font-semibold text-slate-950 shadow-sm transition hover:bg-white"
+          >
+            Nouveau document
+          </Link>
         </div>
-        <Link
-          to="/create"
-          className="inline-flex items-center justify-center rounded-md bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-gray-900"
-        >
-          Nouveau document
-        </Link>
       </div>
 
       {/* GÉNÉRER UN DOCUMENT Section */}
       <div>
-        <h2 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
           GÉNÉRER UN DOCUMENT
-        </h2>
+          </h2>
+          <span className="text-xs text-slate-400">Automatisation IA</span>
+        </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {documentTypes.map((doc) => (
             <Link
               key={doc.id}
               to={doc.href}
-              className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+              className="group rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
             >
               <div className="flex flex-col h-full">
-                <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gray-900 to-gray-700 shadow-sm">
-                  <doc.icon className="h-4 w-4 text-white" />
+                <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 shadow-sm ring-1 ring-slate-900/30">
+                  <doc.icon className="h-4 w-4 text-cyan-300" />
                 </div>
                 <h3 className="text-base font-semibold text-gray-950 mb-2">
                   {doc.title}
                 </h3>
-                <p className="text-sm text-gray-600 mb-4 flex-1">
+                <p className="text-sm text-slate-600 mb-4 flex-1">
                   {doc.description}
                 </p>
-                <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
-                  <doc.tagIcon className="h-3 w-3 text-gray-600" />
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">
+                  <doc.tagIcon className="h-3 w-3 text-slate-600" />
                   <span>{doc.tag}</span>
                 </div>
               </div>
@@ -134,44 +146,46 @@ export default function Dashboard() {
       {/* DEALS ACTIFS Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-semibold text-gray-800 uppercase tracking-wider flex items-center space-x-1">
-            <Briefcase className="h-3 w-3 text-black" />
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 flex items-center space-x-2">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-slate-900">
+              <Briefcase className="h-3 w-3 text-cyan-300" />
+            </span>
             <span>DEALS ACTIFS</span>
           </h2>
           <Link
             to="/documents"
-            className="text-sm text-gray-700 hover:text-gray-950"
+            className="text-sm text-slate-600 hover:text-slate-950"
           >
             Voir tous →
           </Link>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           {activeDeals.map((deal) => (
             <div
               key={deal.id}
-              className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
+              className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-slate-50"
             >
               <div className="flex items-center space-x-4">
                 <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${deal.color} text-sm font-semibold text-white`}
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${deal.color} text-sm font-semibold text-white ring-1 ring-white/40`}
                 >
                   {deal.icon}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-950">
+                  <span className="text-sm font-semibold text-slate-950">
                     {deal.name}
                   </span>
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-slate-500">
                     Dernière mise à jour
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                <div className="inline-flex items-center gap-2 rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-medium text-cyan-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-500"></span>
                   {deal.status}
                 </div>
-                <span className="text-sm text-gray-600">{deal.date}</span>
+                <span className="text-sm text-slate-600">{deal.date}</span>
               </div>
             </div>
           ))}
