@@ -19,7 +19,13 @@ const COMPOSIO_BASE_URL =
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || "";
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || "";
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "gaspard@getroom.io").toLowerCase();
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "gaspard@getroom.io")
+  .split(/[,;\s]+/)
+  .map((email) => email.toLowerCase())
+  .filter(Boolean);
+const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || process.env.ADMIN_USER_ID || "")
+  .split(/[,;\s]+/)
+  .filter(Boolean);
 
 app.use(cors());
 app.use(express.json());
@@ -106,7 +112,9 @@ async function requireAdmin(
     const emails = user.emailAddresses.map((email: { emailAddress: string }) =>
       email.emailAddress.toLowerCase()
     );
-    if (!emails.includes(ADMIN_EMAIL)) {
+    const isEmailAllowed = emails.some((email) => ADMIN_EMAILS.includes(email));
+    const isUserAllowed = ADMIN_USER_IDS.length > 0 && ADMIN_USER_IDS.includes(userId);
+    if (!isEmailAllowed && !isUserAllowed) {
       return res.status(403).json({ error: "Accès admin refusé." });
     }
     return next();
