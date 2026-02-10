@@ -24,10 +24,10 @@ type Membership = {
 
 type Invitation = {
   id: string;
-  email_address: string;
+  emailAddress: string;
   status: string;
   role: string;
-  public_metadata?: {
+  publicMetadata?: {
     firstName?: string;
     lastName?: string;
   };
@@ -495,12 +495,12 @@ export default function Admin() {
                 >
                   <div>
                     <div className="text-gray-900">
-                      {invite.public_metadata?.firstName ||
-                      invite.public_metadata?.lastName
-                        ? `${invite.public_metadata?.firstName ?? ""} ${invite.public_metadata?.lastName ?? ""}`.trim()
+                      {invite.publicMetadata?.firstName ||
+                      invite.publicMetadata?.lastName
+                        ? `${invite.publicMetadata?.firstName ?? ""} ${invite.publicMetadata?.lastName ?? ""}`.trim()
                         : "Invité"}
                       <span className="text-gray-500"> • </span>
-                      {invite.email_address}
+                      {invite.emailAddress}
                       {invite.role ? (
                         <>
                           <span className="text-gray-500"> • </span>
