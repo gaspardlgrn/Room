@@ -9,6 +9,7 @@ import { generateTranscriptDocx } from "./lib/transcript-docx.js";
 import { generateTranscriptPptx } from "./lib/transcript-pptx.js";
 import { DocumentType, InvestmentData } from "./types/index.js";
 import OpenAI from "openai";
+import { clerkClient, verifyToken } from "@clerk/backend";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,6 +18,8 @@ const COMPOSIO_BASE_URL =
   process.env.COMPOSIO_BASE_URL || "https://backend.composio.dev";
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || "";
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
+const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || "";
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "gaspard@getroom.io").toLowerCase();
 
 app.use(cors());
 app.use(express.json());
@@ -47,6 +50,41 @@ const msalClient =
 
 const oauthStateStore = new Set<string>();
 let microsoftAccount: AccountInfo | null = null;
+
+async function requireAdmin(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  if (!CLERK_SECRET_KEY) {
+    return res.status(500).json({ error: "CLERK_SECRET_KEY manquante." });
+  }
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+  if (!token) {
+    return res.status(401).json({ error: "Token Clerk manquant." });
+  }
+  try {
+    const payload = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
+    const userId = payload.sub;
+    if (!userId) {
+      return res.status(401).json({ error: "Token Clerk invalide." });
+    }
+    const user = await clerkClient.users.getUser(userId);
+    const emails = user.emailAddresses.map((email) =>
+      email.emailAddress.toLowerCase()
+    );
+    if (!emails.includes(ADMIN_EMAIL)) {
+      return res.status(403).json({ error: "Accès admin refusé." });
+    }
+    return next();
+  } catch (error) {
+    console.error("Erreur auth admin Clerk:", error);
+    return res.status(401).json({ error: "Token Clerk invalide." });
+  }
+}
 
 async function enhanceWithAI(investmentData: InvestmentData): Promise<InvestmentData> {
   if (!process.env.OPENAI_API_KEY || !openai) {
@@ -479,6 +517,91 @@ app.post("/api/generate-transcript-document", async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ error: message });
     }
+  }
+});
+
+app.get("/api/admin/organizations", requireAdmin, async (_req, res) => {
+  try {
+    const orgs = await clerkClient.organizations.getOrganizationList({
+      limit: 100,
+    });
+    return res.json(orgs);
+  } catch (error) {
+    console.error("Erreur Clerk orgs:", error);
+    return res.status(500).json({ error: "Erreur Clerk." });
+  }
+});
+
+app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    const members = await clerkClient.organizations.getOrganizationMembershipList(
+      { organizationId: orgId, limit: 100 }
+    );
+    return res.json(members);
+  } catch (error) {
+    console.error("Erreur Clerk members:", error);
+    return res.status(500).json({ error: "Erreur Clerk." });
+  }
+});
+
+app.get("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    const invitations = await clerkClient.organizations.getOrganizationInvitationList(
+      { organizationId: orgId, limit: 100 }
+    );
+    return res.json(invitations);
+  } catch (error) {
+    console.error("Erreur Clerk invitations:", error);
+    return res.status(500).json({ error: "Erreur Clerk." });
+  }
+});
+
+app.post("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    const { email, role } = req.body as { email?: string; role?: string };
+    if (!email) {
+      return res.status(400).json({ error: "Email requis." });
+    }
+    const invitation = await clerkClient.organizations.createOrganizationInvitation({
+      organizationId: orgId,
+      emailAddress: email,
+      role: role || "basic_member",
+    });
+    return res.json(invitation);
+  } catch (error) {
+    console.error("Erreur Clerk invitation:", error);
+    return res.status(500).json({ error: "Erreur Clerk." });
+  }
+});
+
+app.delete(
+  "/api/admin/organizations/:orgId/invitations/:invitationId",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const { invitationId } = req.params;
+      await clerkClient.organizations.revokeOrganizationInvitation({
+        organizationInvitationId: invitationId,
+      });
+      return res.json({ ok: true });
+    } catch (error) {
+      console.error("Erreur Clerk revoke invitation:", error);
+      return res.status(500).json({ error: "Erreur Clerk." });
+    }
+  }
+);
+
+app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    await clerkClient.users.deleteUser(userId);
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error("Erreur Clerk delete user:", error);
+    return res.status(500).json({ error: "Erreur Clerk." });
   }
 });
 
