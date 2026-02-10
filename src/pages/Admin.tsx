@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useAuth, useUser } from "@clerk/clerk-react";
 
 type Org = {
@@ -47,6 +48,10 @@ export default function Admin() {
     id: string;
     label: string;
   } | null>(null);
+  const selectedOrg = orgs.find((org) => org.id === selectedOrgId) || null;
+  const pendingInvitations = invitations.filter(
+    (invite) => invite.status === "pending"
+  );
 
   const isAdmin = useMemo(() => {
     const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
@@ -290,23 +295,16 @@ export default function Admin() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold text-black">Administration</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Gérez les utilisateurs et les droits d’accès via Clerk.
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-          Compte connecté
-        </div>
-        <div className="mt-2 grid gap-2 md:grid-cols-[140px_1fr]">
-          <div className="text-gray-500">Email</div>
-          <div className="text-gray-900">
-            {user?.primaryEmailAddress?.emailAddress || "—"}
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-black">Administration</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Gérez les organisations, membres et invitations.
+            </p>
           </div>
-          <div className="text-gray-500">ID Clerk</div>
-          <div className="text-gray-900">{user?.id || "—"}</div>
+          <div className="text-xs text-gray-500">
+            Connecté : {user?.primaryEmailAddress?.emailAddress || "—"}
+          </div>
         </div>
       </div>
 
@@ -316,169 +314,214 @@ export default function Admin() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-[260px_1fr]">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-600">
-            Organisations
-          </div>
-          <div className="mt-3 space-y-2">
-            <input
-              type="text"
-              value={orgName}
-              onChange={(event) => setOrgName(event.target.value)}
-              placeholder="Nom de l'organisation"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <input
-              type="text"
-              value={orgSlug}
-              onChange={(event) => setOrgSlug(event.target.value)}
-              placeholder="Slug (optionnel)"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={handleCreateOrganization}
-              className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
-              disabled={loading || !orgName.trim()}
-            >
-              Créer l'organisation
-            </button>
-          </div>
-          {selectedOrgId && (
-            <button
-              type="button"
-              onClick={() => handleDeleteOrganization(selectedOrgId)}
-              className="mt-3 w-full rounded-md border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-            >
-              Supprimer l'organisation sélectionnée
-            </button>
-          )}
-          <div className="mt-3 space-y-2">
-            {orgs.map((org) => (
+      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Nouvelle organisation
+            </div>
+            <div className="mt-3 space-y-2">
+              <input
+                type="text"
+                value={orgName}
+                onChange={(event) => setOrgName(event.target.value)}
+                placeholder="Nom de l'organisation"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                value={orgSlug}
+                onChange={(event) => setOrgSlug(event.target.value)}
+                placeholder="Slug (optionnel)"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
               <button
-                key={org.id}
                 type="button"
-                onClick={() => setSelectedOrgId(org.id)}
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm ${
-                  selectedOrgId === org.id
-                    ? "bg-blue-50 text-blue-700"
-                    : "hover:bg-gray-50 text-gray-800"
-                }`}
+                onClick={handleCreateOrganization}
+                className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
+                disabled={loading || !orgName.trim()}
               >
-                {org.name}
+                Créer l'organisation
               </button>
-            ))}
-            {!orgs.length && !loading && (
-              <div className="text-sm text-gray-500">Aucune organisation.</div>
-            )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Organisations
+            </div>
+            <div className="mt-4 space-y-2">
+              {orgs.map((org) => (
+                <div
+                  key={org.id}
+                  className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                    selectedOrgId === org.id
+                      ? "border-blue-200 bg-blue-50 text-blue-700"
+                      : "border-gray-100 text-gray-800 hover:bg-gray-50"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOrgId(org.id)}
+                    className="flex-1 text-left"
+                  >
+                    <div className="font-medium">{org.name}</div>
+                    {org.members_count !== undefined && (
+                      <div className="text-xs text-gray-500">
+                        {org.members_count} membre(s)
+                      </div>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteOrganization(org.id)}
+                    className="ml-3 rounded-md p-2 text-red-600 hover:bg-red-50"
+                    aria-label="Supprimer l'organisation"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+              {!orgs.length && !loading && (
+                <div className="text-sm text-gray-500">Aucune organisation.</div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-sm font-semibold text-gray-800">
-                  Invitations
+                  Invitations en attente
                 </div>
                 <div className="text-xs text-gray-500">
-                  Envoyez une invitation par email pour activer l'accès OAuth.
+                  Ajoutez des membres et envoyez une invitation OAuth.
                 </div>
               </div>
-              <div className="flex flex-1 gap-2 md:max-w-md">
-                <input
-                  type="text"
-                  value={inviteFirstName}
-                  onChange={(event) => setInviteFirstName(event.target.value)}
-                  placeholder="Prénom"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-                <input
-                  type="text"
-                  value={inviteLastName}
-                  onChange={(event) => setInviteLastName(event.target.value)}
-                  placeholder="Nom"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(event) => setInviteEmail(event.target.value)}
-                  placeholder="email@domaine.com"
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                />
-                <select
-                  value={inviteRole}
-                  onChange={(event) => setInviteRole(event.target.value)}
-                  className="rounded-md border border-gray-300 px-2 py-2 text-sm"
-                >
-                  <option value="org:member">Membre</option>
-                  <option value="org:admin">Admin</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleInvite}
-                  className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
-                  disabled={loading || !inviteEmail || !selectedOrgId}
-                >
-                  Inviter
-                </button>
-              </div>
+              {selectedOrg && (
+                <div className="text-xs text-gray-500">
+                  Organisation :{" "}
+                  <span className="text-gray-800">{selectedOrg.name}</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
+              <input
+                type="text"
+                value={inviteFirstName}
+                onChange={(event) => setInviteFirstName(event.target.value)}
+                placeholder="Prénom"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <input
+                type="text"
+                value={inviteLastName}
+                onChange={(event) => setInviteLastName(event.target.value)}
+                placeholder="Nom"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="email@domaine.com"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+              <select
+                value={inviteRole}
+                onChange={(event) => setInviteRole(event.target.value)}
+                className="rounded-md border border-gray-300 px-2 py-2 text-sm"
+              >
+                <option value="org:member">Membre</option>
+                <option value="org:admin">Admin</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleInvite}
+                className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
+                disabled={loading || !inviteEmail || !selectedOrgId}
+              >
+                Inviter
+              </button>
             </div>
             <div className="mt-4 space-y-2">
-              {invitations.map((invite) => (
+              {pendingInvitations.map((invite) => (
                 <div
                   key={invite.id}
                   className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-sm"
                 >
-                  <span>{invite.email_address}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs uppercase text-gray-500">
-                      {invite.status}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteInvitation(invite.id)}
-                      className="text-xs text-red-600 hover:text-red-700"
-                    >
-                      Supprimer
-                    </button>
+                  <div>
+                    <div className="text-gray-900">{invite.email_address}</div>
+                    <div className="text-xs text-gray-500">En attente</div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteInvitation(invite.id)}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Supprimer
+                  </button>
                 </div>
               ))}
-              {!invitations.length && (
-                <div className="text-sm text-gray-500">Aucune invitation.</div>
+              {!pendingInvitations.length && (
+                <div className="text-sm text-gray-500">
+                  Aucune invitation en attente.
+                </div>
               )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div className="text-sm font-semibold text-gray-800">Membres</div>
-            <div className="mt-3 space-y-2">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-semibold text-gray-800">Membres</div>
+              {selectedOrg && (
+                <div className="text-xs text-gray-500">
+                  Organisation :{" "}
+                  <span className="text-gray-800">{selectedOrg.name}</span>
+                </div>
+              )}
+            </div>
+            <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
+              <div className="grid grid-cols-[1fr_1fr_1fr_80px] gap-2 px-3 py-2 text-xs font-semibold uppercase text-gray-500">
+                <span>Membre</span>
+                <span>Email</span>
+                <span>Organisation</span>
+                <span className="text-right">Actions</span>
+              </div>
               {members.map((member) => (
                 <div
                   key={member.id}
-                  className="flex flex-col gap-2 rounded-lg border border-gray-100 px-3 py-2 text-sm md:flex-row md:items-center md:justify-between"
+                  className="grid grid-cols-[1fr_1fr_1fr_80px] items-center gap-2 px-3 py-2 text-sm"
                 >
-                  <div>
-                    <div className="text-gray-900">
-                      {member.public_user_data?.identifier ||
-                        member.public_user_data?.user_id}
-                    </div>
-                    <div className="text-xs text-gray-500">{member.role}</div>
-                  </div>
+                  <span className="text-gray-900">
+                    {member.public_user_data?.first_name ||
+                      member.public_user_data?.last_name ||
+                      member.public_user_data?.identifier ||
+                      "—"}
+                  </span>
+                  <span className="text-gray-700">
+                    {member.public_user_data?.identifier ||
+                      member.public_user_data?.user_id ||
+                      "—"}
+                  </span>
+                  <span className="text-gray-700">
+                    {selectedOrg?.name || "—"}
+                  </span>
                   <button
                     type="button"
                     onClick={() => handleRemoveMember(member.public_user_data?.user_id)}
-                    className="text-xs text-red-600 hover:text-red-700"
+                    className="justify-self-end text-xs text-red-600 hover:text-red-700"
                   >
                     Retirer
                   </button>
                 </div>
               ))}
               {!members.length && (
-                <div className="text-sm text-gray-500">Aucun membre.</div>
+                <div className="px-3 py-3 text-sm text-gray-500">
+                  Aucun membre dans cette organisation.
+                </div>
               )}
             </div>
           </div>
