@@ -9,6 +9,7 @@
 # production
 /dist
 /build
+.vercel/
 
 # misc
 .DS_Store
