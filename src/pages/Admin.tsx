@@ -52,6 +52,7 @@ export default function Admin() {
     const token = await getToken();
     const response = await fetch(path, {
       ...init,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
