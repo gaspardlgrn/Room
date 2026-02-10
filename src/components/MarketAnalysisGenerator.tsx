@@ -3,11 +3,36 @@ import { DocumentCategory, DocumentType, InvestmentData } from "@/types";
 import { createRecentDocument, useRecentDocuments } from "@/state/recentDocuments";
 
 const TOOL_OPTIONS = [
-  { value: "web-search", label: "Web search" },
-  { value: "pappers", label: "Pappers" },
-  { value: "crunchbase", label: "Crunchbase" },
-  { value: "pitchbook", label: "Pitchbook" },
-  { value: "capitaliQ", label: "CapitalIQ" },
+  {
+    value: "web-search",
+    label: "Web search",
+    logoText: "WS",
+    logoClass: "bg-slate-900 text-white",
+  },
+  {
+    value: "pappers",
+    label: "Pappers",
+    logoText: "P",
+    logoClass: "bg-emerald-500 text-white",
+  },
+  {
+    value: "crunchbase",
+    label: "Crunchbase",
+    logoText: "CB",
+    logoClass: "bg-orange-500 text-white",
+  },
+  {
+    value: "pitchbook",
+    label: "Pitchbook",
+    logoText: "PB",
+    logoClass: "bg-blue-600 text-white",
+  },
+  {
+    value: "capitaliQ",
+    label: "CapitalIQ",
+    logoText: "CIQ",
+    logoClass: "bg-indigo-600 text-white",
+  },
 ];
 
 export default function MarketAnalysisGenerator() {
@@ -190,7 +215,13 @@ export default function MarketAnalysisGenerator() {
                       );
                     }}
                   />
-                  {tool.label}
+                  <span
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-[11px] font-semibold ${tool.logoClass}`}
+                    aria-hidden="true"
+                  >
+                    {tool.logoText}
+                  </span>
+                  <span>{tool.label}</span>
                 </label>
               );
             })}
