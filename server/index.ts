@@ -633,6 +633,10 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ error: message });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur Express démarré sur le port ${PORT}`);
-});
+if (process.env.VERCEL !== "1") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Serveur Express démarré sur le port ${PORT}`);
+  });
+}
+
+export default app;
