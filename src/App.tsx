@@ -8,8 +8,8 @@ import Settings from './pages/Settings'
 import ExpertCallAnalysis from './pages/ExpertCallAnalysis'
 import MeetingNote from './pages/MeetingNote'
 import Login from './pages/Login'
-import { AuthProvider } from './contexts/AuthContext'
 import AuthGuard from './components/AuthGuard'
+import { ClerkProvider } from '@clerk/clerk-react'
 import './App.css'
 
 const router = createBrowserRouter(
@@ -42,10 +42,20 @@ const router = createBrowserRouter(
 )
 
 function App() {
+  const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+  if (!clerkKey) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white text-sm text-gray-700">
+        Configuration Clerk manquante.
+      </div>
+    )
+  }
+
   return (
-    <AuthProvider>
+    <ClerkProvider publishableKey={clerkKey}>
       <RouterProvider router={router} />
-    </AuthProvider>
+    </ClerkProvider>
   )
 }
 

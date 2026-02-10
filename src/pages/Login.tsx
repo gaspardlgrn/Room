@@ -1,53 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { instantDb, instantDbConfigured } from "@/integrations/instantdb/client";
+import { SignIn } from "@clerk/clerk-react";
+import { useLocation } from "react-router-dom";
 
 export default function Login() {
-  const { user, allowed, loading, authError, signInWithProvider } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
-  const [callbackError, setCallbackError] = useState<string | null>(null);
-  const [isExchanging, setIsExchanging] = useState(false);
-  const authUnavailable = !instantDbConfigured;
-
-  const redirectPath = useMemo(() => {
-    const state = location.state as { from?: string } | null;
-    return state?.from ?? "/dashboard";
-  }, [location.state]);
-
-  useEffect(() => {
-    if (!loading && user && allowed) {
-      navigate(redirectPath, { replace: true });
-    }
-  }, [loading, user, allowed, navigate, redirectPath]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const error = params.get("error");
-    const errorDescription = params.get("error_description");
-    if (authUnavailable) {
-      return;
-    }
-    if (error || errorDescription) {
-      setCallbackError(errorDescription || error);
-      return;
-    }
-    if (!code || isExchanging) return;
-
-    setIsExchanging(true);
-    instantDb.auth
-      .exchangeOAuthCode({ code })
-      .catch((err) => {
-        setCallbackError(err?.body?.message || err?.message || "Connexion impossible.");
-      })
-      .finally(() => {
-        setIsExchanging(false);
-        const cleanUrl = `${window.location.origin}/login`;
-        window.history.replaceState({}, "", cleanUrl);
-      });
-  }, [isExchanging]);
+  const params = new URLSearchParams(location.search);
+  const unauthorized = params.get("unauthorized") === "1";
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
@@ -59,38 +16,21 @@ export default function Login() {
           Connectez-vous pour accéder à l’application.
         </p>
 
-        {(authError || callbackError || authUnavailable) && (
+        {unauthorized && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {authUnavailable
-              ? "Configuration InstantDB manquante."
-              : callbackError || authError}
+            Accès refusé : cet email n'est pas autorisé.
           </div>
         )}
 
-        <div className="mt-6 space-y-3">
-          <button
-            type="button"
-            onClick={() => signInWithProvider("google")}
-            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            disabled={isExchanging || authUnavailable}
-          >
-            Se connecter avec Google
-          </button>
-          <button
-            type="button"
-            onClick={() => signInWithProvider("microsoft")}
-            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            disabled={isExchanging || authUnavailable}
-          >
-            Se connecter avec Microsoft
-          </button>
+        <div className="mt-6 flex justify-center">
+          <SignIn
+            routing="path"
+            path="/login"
+            afterSignInUrl="/dashboard"
+            afterSignUpUrl="/dashboard"
+            signUpUrl="/login"
+          />
         </div>
-
-        {isExchanging && (
-          <p className="mt-4 text-center text-xs text-gray-500">
-            Connexion en cours...
-          </p>
-        )}
 
         <p className="mt-6 text-center text-xs text-gray-500">
           Seul l’email gaspard@getroom.io est autorisé.

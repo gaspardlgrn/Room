@@ -1,11 +1,14 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useClerk, useUser } from "@clerk/clerk-react";
+
+const ALLOWED_EMAIL = "gaspard@getroom.io";
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { loading, user, allowed } = useAuth();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useClerk();
   const location = useLocation();
 
-  if (loading) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white text-sm text-gray-700">
         Chargement...
@@ -13,8 +16,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user || !allowed) {
+  if (!isSignedIn) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+
+  const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
+  if (email !== ALLOWED_EMAIL) {
+    void signOut();
+    return <Navigate to="/login?unauthorized=1" replace />;
   }
 
   return <>{children}</>;
