@@ -678,17 +678,32 @@ app.post("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req
   try {
     const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
     const { orgId } = req.params;
-    const { email, role } = req.body as { email?: string; role?: string };
+    const {
+      email,
+      role,
+      firstName,
+      lastName,
+    } = req.body as {
+      email?: string;
+      role?: string;
+      firstName?: string;
+      lastName?: string;
+    };
     if (!email) {
       return res.status(400).json({ error: "Email requis." });
     }
     const inviterUserId = (req as express.Request & { clerkUserId?: string })
       .clerkUserId;
     const inviteRole = role || ADMIN_INVITE_ROLE;
+    const publicMetadata = {
+      ...(firstName ? { firstName } : {}),
+      ...(lastName ? { lastName } : {}),
+    };
     const invitation = await clerkClient.organizations.createOrganizationInvitation({
       organizationId: orgId,
       emailAddress: email,
       role: inviteRole,
+      ...(Object.keys(publicMetadata).length > 0 ? { publicMetadata } : {}),
       ...(inviterUserId ? { inviterUserId } : {}),
     });
     return res.json(invitation);

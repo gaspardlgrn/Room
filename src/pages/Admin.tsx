@@ -36,6 +36,8 @@ export default function Admin() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("org:member");
+  const [inviteFirstName, setInviteFirstName] = useState("");
+  const [inviteLastName, setInviteLastName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [loading, setLoading] = useState(false);
@@ -142,9 +144,16 @@ export default function Admin() {
     try {
       await fetchWithAuth(`/api/admin/organizations/${selectedOrgId}/invitations`, {
         method: "POST",
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
+        body: JSON.stringify({
+          email: inviteEmail,
+          role: inviteRole,
+          firstName: inviteFirstName || undefined,
+          lastName: inviteLastName || undefined,
+        }),
       });
       setInviteEmail("");
+      setInviteFirstName("");
+      setInviteLastName("");
       await loadInvitations(selectedOrgId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur invitation.");
@@ -378,6 +387,20 @@ export default function Admin() {
                 </div>
               </div>
               <div className="flex flex-1 gap-2 md:max-w-md">
+                <input
+                  type="text"
+                  value={inviteFirstName}
+                  onChange={(event) => setInviteFirstName(event.target.value)}
+                  placeholder="Prénom"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  type="text"
+                  value={inviteLastName}
+                  onChange={(event) => setInviteLastName(event.target.value)}
+                  placeholder="Nom"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
                 <input
                   type="email"
                   value={inviteEmail}

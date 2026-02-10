@@ -381,11 +381,22 @@ function LayoutContent() {
             >
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <span className="text-gray-700 font-semibold text-sm">G</span>
+                  <span className="text-gray-700 font-semibold text-sm">
+                    {user?.firstName?.[0] ||
+                      user?.lastName?.[0] ||
+                      user?.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() ||
+                      "?"}
+                  </span>
                 </div>
                 <div className="text-left">
-                  <div className="text-black text-sm font-medium">gaspard</div>
-                  <div className="text-gray-800 text-xs">gaspard@getroom.io</div>
+                  <div className="text-black text-sm font-medium">
+                    {user?.firstName || user?.lastName
+                      ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim()
+                      : "Utilisateur"}
+                  </div>
+                  <div className="text-gray-800 text-xs">
+                    {user?.primaryEmailAddress?.emailAddress || ""}
+                  </div>
                 </div>
               </div>
               <ChevronUp
