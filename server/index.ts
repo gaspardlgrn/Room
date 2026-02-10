@@ -613,7 +613,31 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
     const members = await clerkClient.organizations.getOrganizationMembershipList(
       { organizationId: orgId, limit: 100 }
     );
-    return res.json(members);
+    const enriched = await Promise.all(
+      members.data.map(async (member) => {
+        const userId = member.public_user_data?.user_id;
+        if (!userId) {
+          return {
+            ...member,
+            email: member.public_user_data?.identifier,
+          };
+        }
+        try {
+          const user = await clerkClient.users.getUser(userId);
+          const email = user.primaryEmailAddress?.emailAddress;
+          return {
+            ...member,
+            email: email || member.public_user_data?.identifier,
+          };
+        } catch {
+          return {
+            ...member,
+            email: member.public_user_data?.identifier,
+          };
+        }
+      })
+    );
+    return res.json({ ...members, data: enriched });
   } catch (error) {
     console.error("Erreur Clerk members:", error);
     return res

@@ -12,6 +12,7 @@ type Org = {
 type Membership = {
   id: string;
   role: string;
+  email?: string;
   public_user_data?: {
     identifier?: string;
     first_name?: string | null;
@@ -39,6 +40,7 @@ export default function Admin() {
   const [inviteRole, setInviteRole] = useState("org:member");
   const [inviteFirstName, setInviteFirstName] = useState("");
   const [inviteLastName, setInviteLastName] = useState("");
+  const [inviteOrgId, setInviteOrgId] = useState("");
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [loading, setLoading] = useState(false);
@@ -141,16 +143,22 @@ export default function Admin() {
     setInvitations([]);
   }, [selectedOrgId]);
 
+  useEffect(() => {
+    if (selectedOrgId) {
+      setInviteOrgId(selectedOrgId);
+    }
+  }, [selectedOrgId]);
+
   const handleInvite = async () => {
-    if (!selectedOrgId) {
-      setError("Aucune organisation sélectionnée.");
+    if (!inviteOrgId) {
+      setError("Sélectionnez une organisation pour l'invitation.");
       return;
     }
     if (!inviteEmail) return;
     setLoading(true);
     setError(null);
     try {
-      await fetchWithAuth(`/api/admin/organizations/${selectedOrgId}/invitations`, {
+      await fetchWithAuth(`/api/admin/organizations/${inviteOrgId}/invitations`, {
         method: "POST",
         body: JSON.stringify({
           email: inviteEmail,
@@ -411,6 +419,18 @@ export default function Admin() {
               )}
             </div>
             <div className="mt-4 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
+              <select
+                value={inviteOrgId}
+                onChange={(event) => setInviteOrgId(event.target.value)}
+                className="w-full rounded-md border border-gray-300 px-2 py-2 text-sm md:col-span-2 lg:col-span-1"
+              >
+                <option value="">Organisation</option>
+                {orgs.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
               <input
                 type="text"
                 value={inviteFirstName}
@@ -444,7 +464,7 @@ export default function Admin() {
                 type="button"
                 onClick={handleInvite}
                 className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
-                disabled={loading || !inviteEmail || !selectedOrgId}
+                disabled={loading || !inviteEmail || !inviteOrgId}
               >
                 Inviter
               </button>
@@ -505,12 +525,12 @@ export default function Admin() {
                 >
                   <span className="text-gray-900">
                     {member.public_user_data?.first_name ||
-                      member.public_user_data?.last_name
+                    member.public_user_data?.last_name
                       ? `${member.public_user_data?.first_name ?? ""} ${member.public_user_data?.last_name ?? ""}`.trim()
                       : "—"}
                   </span>
                   <span className="text-gray-700">
-                    {member.public_user_data?.identifier || "—"}
+                    {member.email || member.public_user_data?.identifier || "—"}
                   </span>
                   <span className="text-gray-700">
                     {selectedOrg?.name || "—"}
