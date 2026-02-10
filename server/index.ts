@@ -65,6 +65,17 @@ function formatClerkError(error: unknown, fallback: string) {
   return fallback;
 }
 
+function getCookieValue(cookieHeader: string | undefined, name: string) {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(";").map((part) => part.trim());
+  for (const part of parts) {
+    if (part.startsWith(`${name}=`)) {
+      return decodeURIComponent(part.slice(name.length + 1));
+    }
+  }
+  return null;
+}
+
 async function requireAdmin(
   req: express.Request,
   res: express.Response,
@@ -75,9 +86,13 @@ async function requireAdmin(
   }
   const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
   const authHeader = req.headers.authorization || "";
-  const token = authHeader.startsWith("Bearer ")
+  const bearerToken = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
     : null;
+  const cookieToken =
+    getCookieValue(req.headers.cookie, "__session") ||
+    getCookieValue(req.headers.cookie, "__clerk_session");
+  const token = bearerToken || cookieToken;
   if (!token) {
     return res.status(401).json({ error: "Token Clerk manquant." });
   }
