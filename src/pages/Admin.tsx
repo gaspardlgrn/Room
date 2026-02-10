@@ -54,6 +54,20 @@ export default function Admin() {
   const pendingInvitations = invitations.filter(
     (invite) => invite.status === "pending"
   );
+  const adminUserId = user?.id || "";
+  const adminEmail =
+    user?.primaryEmailAddress?.emailAddress?.toLowerCase() || "";
+  const visibleMembers = members.filter((member) => {
+    const memberId = member.public_user_data?.user_id;
+    const memberEmail = member.email?.toLowerCase();
+    if (adminUserId && memberId === adminUserId) {
+      return false;
+    }
+    if (adminEmail && memberEmail === adminEmail) {
+      return false;
+    }
+    return true;
+  });
 
   const isAdmin = useMemo(() => {
     const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
@@ -518,7 +532,7 @@ export default function Admin() {
                 <span>Organisation</span>
                 <span className="text-right">Actions</span>
               </div>
-              {members.map((member) => (
+              {visibleMembers.map((member) => (
                 <div
                   key={member.id}
                   className="grid grid-cols-[1fr_1fr_1fr_80px] items-center gap-2 px-3 py-2 text-sm"
@@ -544,7 +558,7 @@ export default function Admin() {
                   </button>
                 </div>
               ))}
-              {!members.length && (
+              {!visibleMembers.length && (
                 <div className="px-3 py-3 text-sm text-gray-500">
                   Aucun membre dans cette organisation.
                 </div>
