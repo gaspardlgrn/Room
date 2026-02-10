@@ -14,9 +14,11 @@ import {
   Menu,
   MoreHorizontal,
   Settings,
+  Shield,
   Video,
 } from 'lucide-react'
 import { SignOutButton } from '@clerk/clerk-react'
+import { useUser } from '@clerk/clerk-react'
 import { RecentDocumentsProvider, useRecentDocuments } from '@/state/recentDocuments'
 import type { DocumentCategory } from '@/types'
 
@@ -52,9 +54,14 @@ function LayoutContent() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const profileMenuRef = useRef<HTMLDivElement | null>(null)
   const assignmentsStorageKey = 'room_project_assignments'
+  const { user } = useUser()
+
+  const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? ''
+  const isAdminUser = userEmail === 'gaspard@getroom.io'
 
   const navigation = [
     { name: 'Accueil', href: '/dashboard', icon: Home },
+    ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ]
 
   const projects = [

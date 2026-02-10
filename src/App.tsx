@@ -7,6 +7,7 @@ import RecentDocument from './pages/RecentDocument'
 import Settings from './pages/Settings'
 import ExpertCallAnalysis from './pages/ExpertCallAnalysis'
 import MeetingNote from './pages/MeetingNote'
+import Admin from './pages/Admin'
 import Login from './pages/Login'
 import AuthGuard from './components/AuthGuard'
 import {
@@ -35,6 +36,7 @@ const router = createBrowserRouter(
         { path: 'settings', element: <Settings /> },
         { path: 'expert-call', element: <ExpertCallAnalysis /> },
         { path: 'meeting-note', element: <MeetingNote /> },
+        { path: 'admin', element: <Admin /> },
       ],
     },
   ],
