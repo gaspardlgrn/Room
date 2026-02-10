@@ -50,31 +50,20 @@ export default function Login() {
           </div>
 
           <div className="flex flex-col justify-center">
-            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-lg font-semibold text-black">Connexion</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Choisissez votre fournisseur SSO.
-              </p>
-
-              {unauthorized && (
-                <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  Accès refusé : cet email n'est pas autorisé.
-                </div>
-              )}
-
-              <div className="mt-6 flex justify-center">
-                <SignIn
-                  routing="path"
-                  path="/login"
-                  forceRedirectUrl="/dashboard"
-                  fallbackRedirectUrl="/dashboard"
-                  signUpUrl="/login"
-                />
+            {unauthorized && (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                Accès refusé : cet email n'est pas autorisé.
               </div>
+            )}
 
-              <p className="mt-6 text-center text-xs text-gray-500">
-                Seul l’email gaspard@getroom.io est autorisé.
-              </p>
+            <div className="flex justify-center">
+              <SignIn
+                routing="path"
+                path="/login"
+                forceRedirectUrl="/dashboard"
+                fallbackRedirectUrl="/dashboard"
+                signUpUrl="/login"
+              />
             </div>
           </div>
         </div>
