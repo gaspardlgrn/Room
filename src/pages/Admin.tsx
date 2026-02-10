@@ -212,6 +212,20 @@ export default function Admin() {
         </p>
       </div>
 
+      <div className="rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-700 shadow-sm">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+          Compte connecté
+        </div>
+        <div className="mt-2 grid gap-2 md:grid-cols-[140px_1fr]">
+          <div className="text-gray-500">Email</div>
+          <div className="text-gray-900">
+            {user?.primaryEmailAddress?.emailAddress || "—"}
+          </div>
+          <div className="text-gray-500">ID Clerk</div>
+          <div className="text-gray-900">{user?.id || "—"}</div>
+        </div>
+      </div>
+
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
