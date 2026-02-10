@@ -1,11 +1,13 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useClerk, useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 
-const ALLOWED_EMAIL = "gaspard@getroom.io";
+const allowedEmails = (import.meta.env.VITE_ALLOWED_EMAILS || "")
+  .split(/[,;\s]+/)
+  .map((email: string) => email.toLowerCase())
+  .filter(Boolean);
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useClerk();
   const location = useLocation();
 
   if (!isLoaded) {
@@ -21,8 +23,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
-  if (email !== ALLOWED_EMAIL) {
-    void signOut();
+  if (allowedEmails.length > 0 && !allowedEmails.includes(email)) {
     return <Navigate to="/login?unauthorized=1" replace />;
   }
 
