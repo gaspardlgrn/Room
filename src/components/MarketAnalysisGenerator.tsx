@@ -40,7 +40,9 @@ export default function MarketAnalysisGenerator() {
   const documentCategory: DocumentCategory = "market-analysis";
   const [companyName, setCompanyName] = useState("");
   const [websiteUrl, setWebsiteUrl] = useState("");
-  const [researchTools, setResearchTools] = useState<string[]>([]);
+  const [researchTools, setResearchTools] = useState<string[]>(
+    TOOL_OPTIONS.map((tool) => tool.value)
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { addRecentDocument } = useRecentDocuments();
@@ -203,23 +205,13 @@ export default function MarketAnalysisGenerator() {
                       : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-blue-600"
-                    checked={checked}
-                    onChange={() => {
-                      setResearchTools((prev) =>
-                        prev.includes(tool.value)
-                          ? prev.filter((item) => item !== tool.value)
-                          : [...prev, tool.value]
-                      );
-                    }}
-                  />
                   <span
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-[11px] font-semibold ${tool.logoClass}`}
+                    className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-[11px] font-semibold ${
+                      checked ? "bg-emerald-500 text-white" : tool.logoClass
+                    }`}
                     aria-hidden="true"
                   >
-                    {tool.logoText}
+                    {checked ? "✓" : tool.logoText}
                   </span>
                   <span>{tool.label}</span>
                 </label>
