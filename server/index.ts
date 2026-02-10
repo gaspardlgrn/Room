@@ -588,9 +588,10 @@ app.delete(
   async (req, res) => {
     try {
       const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
-      const { invitationId } = req.params;
+      const { orgId, invitationId } = req.params;
       await clerkClient.organizations.revokeOrganizationInvitation({
-        organizationInvitationId: invitationId,
+        organizationId: orgId,
+        invitationId,
       });
       return res.json({ ok: true });
     } catch (error) {
