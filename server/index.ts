@@ -1,6 +1,10 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import pino from "pino";
+import pinoHttp from "pino-http";
 import { ConfidentialClientApplication, type AccountInfo } from "@azure/msal-node";
 import { randomUUID } from "crypto";
 import { generateDocx } from "./lib/docx-generator.js";
@@ -14,6 +18,14 @@ import { createClerkClient, verifyToken } from "@clerk/backend";
 const app = express();
 const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const CORS_ORIGINS = (process.env.CORS_ORIGINS || FRONTEND_URL)
+  .split(/[,;\s]+/)
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const LOG_LEVEL = process.env.LOG_LEVEL || "info";
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT || "1mb";
+const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000);
+const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 300);
 const COMPOSIO_BASE_URL =
   process.env.COMPOSIO_BASE_URL || "https://backend.composio.dev";
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || "";
@@ -21,7 +33,7 @@ const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || "";
 const ADMIN_INVITE_ROLE =
   process.env.ADMIN_INVITE_ROLE || "org:member";
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "gaspard@getroom.io")
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "")
   .split(/[,;\s]+/)
   .map((email) => email.toLowerCase())
   .filter(Boolean);
@@ -29,8 +41,59 @@ const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || process.env.ADMIN_USER_ID 
   .split(/[,;\s]+/)
   .filter(Boolean);
 
-app.use(cors());
-app.use(express.json());
+const logger = pino({
+  level: LOG_LEVEL,
+  redact: {
+    paths: ["req.headers.authorization", "req.headers.cookie"],
+    remove: true,
+  },
+});
+const httpLogger = pinoHttp({
+  logger,
+  genReqId: () => randomUUID(),
+  customProps: (req) => ({
+    requestId: (req as express.Request & { id?: string }).id,
+  }),
+});
+
+app.disable("x-powered-by");
+app.set("trust proxy", process.env.TRUST_PROXY === "1");
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(httpLogger);
+app.use((req, res, next) => {
+  const requestId = (req as express.Request & { id?: string }).id;
+  if (requestId) {
+    res.setHeader("X-Request-Id", requestId);
+  }
+  next();
+});
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (CORS_ORIGINS.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("CORS origin non autorisée"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(
+  rateLimit({
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    max: RATE_LIMIT_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
 
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -784,6 +847,11 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
     return;
   }
   const anyErr = err as { type?: string; message?: string };
+  if (anyErr?.message?.includes("CORS origin non autorisée")) {
+    res.setHeader("Content-Type", "application/json");
+    res.status(403).json({ error: "CORS origin non autorisée" });
+    return;
+  }
   if (anyErr?.type === "entity.parse.failed") {
     res.setHeader("Content-Type", "application/json");
     res.status(400).json({ error: "Corps JSON invalide" });
