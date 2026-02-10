@@ -9,7 +9,7 @@ import { generateTranscriptDocx } from "./lib/transcript-docx.js";
 import { generateTranscriptPptx } from "./lib/transcript-pptx.js";
 import { DocumentType, InvestmentData } from "./types/index.js";
 import OpenAI from "openai";
-import { clerkClient, verifyToken } from "@clerk/backend";
+import { createClerkClient, verifyToken } from "@clerk/backend";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -59,6 +59,7 @@ async function requireAdmin(
   if (!CLERK_SECRET_KEY) {
     return res.status(500).json({ error: "CLERK_SECRET_KEY manquante." });
   }
+  const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
   const authHeader = req.headers.authorization || "";
   const token = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7)
@@ -73,7 +74,7 @@ async function requireAdmin(
       return res.status(401).json({ error: "Token Clerk invalide." });
     }
     const user = await clerkClient.users.getUser(userId);
-    const emails = user.emailAddresses.map((email) =>
+    const emails = user.emailAddresses.map((email: { emailAddress: string }) =>
       email.emailAddress.toLowerCase()
     );
     if (!emails.includes(ADMIN_EMAIL)) {
@@ -522,6 +523,7 @@ app.post("/api/generate-transcript-document", async (req, res) => {
 
 app.get("/api/admin/organizations", requireAdmin, async (_req, res) => {
   try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
     const orgs = await clerkClient.organizations.getOrganizationList({
       limit: 100,
     });
@@ -534,6 +536,7 @@ app.get("/api/admin/organizations", requireAdmin, async (_req, res) => {
 
 app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res) => {
   try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
     const { orgId } = req.params;
     const members = await clerkClient.organizations.getOrganizationMembershipList(
       { organizationId: orgId, limit: 100 }
@@ -547,6 +550,7 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
 
 app.get("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req, res) => {
   try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
     const { orgId } = req.params;
     const invitations = await clerkClient.organizations.getOrganizationInvitationList(
       { organizationId: orgId, limit: 100 }
@@ -560,6 +564,7 @@ app.get("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req,
 
 app.post("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req, res) => {
   try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
     const { orgId } = req.params;
     const { email, role } = req.body as { email?: string; role?: string };
     if (!email) {
@@ -582,6 +587,7 @@ app.delete(
   requireAdmin,
   async (req, res) => {
     try {
+      const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
       const { invitationId } = req.params;
       await clerkClient.organizations.revokeOrganizationInvitation({
         organizationInvitationId: invitationId,
@@ -596,6 +602,7 @@ app.delete(
 
 app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
   try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
     const { userId } = req.params;
     await clerkClient.users.deleteUser(userId);
     return res.json({ ok: true });
