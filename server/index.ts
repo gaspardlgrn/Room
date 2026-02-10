@@ -51,6 +51,20 @@ const msalClient =
 const oauthStateStore = new Set<string>();
 let microsoftAccount: AccountInfo | null = null;
 
+function formatClerkError(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  const anyErr = error as { errors?: Array<{ message?: string }>; message?: string };
+  if (anyErr?.errors?.length) {
+    return anyErr.errors[0]?.message || fallback;
+  }
+  if (anyErr?.message) {
+    return anyErr.message;
+  }
+  return fallback;
+}
+
 async function requireAdmin(
   req: express.Request,
   res: express.Response,
@@ -530,7 +544,9 @@ app.get("/api/admin/organizations", requireAdmin, async (_req, res) => {
     return res.json(orgs);
   } catch (error) {
     console.error("Erreur Clerk orgs:", error);
-    return res.status(500).json({ error: "Erreur Clerk." });
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
   }
 });
 
@@ -544,7 +560,9 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
     return res.json(members);
   } catch (error) {
     console.error("Erreur Clerk members:", error);
-    return res.status(500).json({ error: "Erreur Clerk." });
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
   }
 });
 
@@ -558,7 +576,9 @@ app.get("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req,
     return res.json(invitations);
   } catch (error) {
     console.error("Erreur Clerk invitations:", error);
-    return res.status(500).json({ error: "Erreur Clerk." });
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
   }
 });
 
@@ -578,7 +598,9 @@ app.post("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req
     return res.json(invitation);
   } catch (error) {
     console.error("Erreur Clerk invitation:", error);
-    return res.status(500).json({ error: "Erreur Clerk." });
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
   }
 });
 
@@ -596,7 +618,9 @@ app.delete(
       return res.json({ ok: true });
     } catch (error) {
       console.error("Erreur Clerk revoke invitation:", error);
-      return res.status(500).json({ error: "Erreur Clerk." });
+      return res
+        .status(500)
+        .json({ error: formatClerkError(error, "Erreur Clerk.") });
     }
   }
 );
@@ -609,7 +633,9 @@ app.delete("/api/admin/users/:userId", requireAdmin, async (req, res) => {
     return res.json({ ok: true });
   } catch (error) {
     console.error("Erreur Clerk delete user:", error);
-    return res.status(500).json({ error: "Erreur Clerk." });
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
   }
 });
 
