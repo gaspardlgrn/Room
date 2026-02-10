@@ -66,8 +66,8 @@ export default function Login() {
                 <SignIn
                   routing="path"
                   path="/login"
-                  afterSignInUrl="/dashboard"
-                  afterSignUpUrl="/dashboard"
+                  forceRedirectUrl="/dashboard"
+                  fallbackRedirectUrl="/dashboard"
                   signUpUrl="/login"
                 />
               </div>
