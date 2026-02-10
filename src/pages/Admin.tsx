@@ -328,6 +328,15 @@ export default function Admin() {
               Créer l'organisation
             </button>
           </div>
+          {selectedOrgId && (
+            <button
+              type="button"
+              onClick={() => handleDeleteOrganization(selectedOrgId)}
+              className="mt-3 w-full rounded-md border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+            >
+              Supprimer l'organisation sélectionnée
+            </button>
+          )}
           <div className="mt-3 space-y-2">
             {orgs.map((org) => (
               <button
@@ -360,15 +369,6 @@ export default function Admin() {
                   Envoyez une invitation par email.
                 </div>
               </div>
-              {selectedOrgId && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteOrganization(selectedOrgId)}
-                  className="text-xs text-red-600 hover:text-red-700"
-                >
-                  Supprimer l'organisation
-                </button>
-              )}
               <div className="flex flex-1 gap-2 md:max-w-md">
                 <input
                   type="email"

@@ -61,9 +61,16 @@ function formatClerkError(error: unknown, fallback: string) {
   if (error instanceof Error && error.message) {
     return error.message;
   }
-  const anyErr = error as { errors?: Array<{ message?: string }>; message?: string };
+  const anyErr = error as {
+    errors?: Array<{ message?: string; longMessage?: string }>;
+    message?: string;
+  };
   if (anyErr?.errors?.length) {
-    return anyErr.errors[0]?.message || fallback;
+    return (
+      anyErr.errors[0]?.longMessage ||
+      anyErr.errors[0]?.message ||
+      fallback
+    );
   }
   if (anyErr?.message) {
     return anyErr.message;
@@ -651,10 +658,13 @@ app.post("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req
     if (!email) {
       return res.status(400).json({ error: "Email requis." });
     }
+    const inviterUserId = (req as express.Request & { clerkUserId?: string })
+      .clerkUserId;
     const invitation = await clerkClient.organizations.createOrganizationInvitation({
       organizationId: orgId,
       emailAddress: email,
       role: role || "basic_member",
+      ...(inviterUserId ? { inviterUserId } : {}),
     });
     return res.json(invitation);
   } catch (error) {
