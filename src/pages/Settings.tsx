@@ -350,6 +350,23 @@ export default function Settings() {
     }
   }, [loadComposioConnections, searchParams])
 
+  const orderedToolkits = useMemo(() => {
+    const list = [...composioState.toolkits]
+    const connected = composioState.connectedSlugs
+    list.sort((a, b) => {
+      const slugA = a.slug || a.name
+      const slugB = b.slug || b.name
+      const aConnected = slugA ? connected.has(String(slugA)) : false
+      const bConnected = slugB ? connected.has(String(slugB)) : false
+      if (aConnected && !bConnected) return -1
+      if (!aConnected && bConnected) return 1
+      const nameA = (a.name || a.slug || '').toLowerCase()
+      const nameB = (b.name || b.slug || '').toLowerCase()
+      return nameA.localeCompare(nameB)
+    })
+    return list
+  }, [composioState.toolkits, composioState.connectedSlugs])
+
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold text-black">Paramètres</h1>
@@ -520,7 +537,7 @@ export default function Settings() {
 
         {composioState.toolkits.length > 0 && (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {composioState.toolkits.map((toolkit) => {
+            {orderedToolkits.map((toolkit) => {
               const slug = toolkit.slug || toolkit.name
               const isConnected = slug
                 ? composioState.connectedSlugs.has(String(slug))
