@@ -135,7 +135,10 @@ export default function Admin() {
     if (selectedOrgId) {
       void loadMembers(selectedOrgId);
       void loadInvitations(selectedOrgId);
+      return;
     }
+    setMembers([]);
+    setInvitations([]);
   }, [selectedOrgId]);
 
   const handleInvite = async () => {
@@ -483,7 +486,12 @@ export default function Admin() {
                 </div>
               )}
             </div>
-            <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
+            {!selectedOrgId ? (
+              <div className="mt-4 rounded-lg border border-dashed border-gray-200 px-4 py-6 text-sm text-gray-500">
+                Sélectionnez une organisation pour afficher ses membres.
+              </div>
+            ) : (
+              <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
               <div className="grid grid-cols-[1fr_1fr_1fr_80px] gap-2 px-3 py-2 text-xs font-semibold uppercase text-gray-500">
                 <span>Membre</span>
                 <span>Email</span>
@@ -497,14 +505,12 @@ export default function Admin() {
                 >
                   <span className="text-gray-900">
                     {member.public_user_data?.first_name ||
-                      member.public_user_data?.last_name ||
-                      member.public_user_data?.identifier ||
-                      "—"}
+                      member.public_user_data?.last_name
+                      ? `${member.public_user_data?.first_name ?? ""} ${member.public_user_data?.last_name ?? ""}`.trim()
+                      : "—"}
                   </span>
                   <span className="text-gray-700">
-                    {member.public_user_data?.identifier ||
-                      member.public_user_data?.user_id ||
-                      "—"}
+                    {member.public_user_data?.identifier || "—"}
                   </span>
                   <span className="text-gray-700">
                     {selectedOrg?.name || "—"}
@@ -524,6 +530,7 @@ export default function Admin() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </div>
