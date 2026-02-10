@@ -175,7 +175,7 @@ export default function MarketAnalysisGenerator() {
               );
               setResearchTools(next);
             }}
-            className="w-full min-h-[140px] px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-black"
+            className="w-full min-h-[150px] rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
           >
             {TOOL_OPTIONS.map((tool) => (
               <option key={tool.value} value={tool.value}>
