@@ -72,6 +72,31 @@ export default function Admin() {
     }
     return true;
   });
+  const mergedMembers = [
+    ...visibleMembers.map((member) => ({
+      type: "member" as const,
+      id: member.id,
+      name:
+        member.public_user_data?.first_name || member.public_user_data?.last_name
+          ? `${member.public_user_data?.first_name ?? ""} ${member.public_user_data?.last_name ?? ""}`.trim()
+          : "—",
+      email: member.email || member.public_user_data?.identifier || "—",
+      status: "Actif",
+      role: member.role,
+      userId: member.public_user_data?.user_id,
+    })),
+    ...pendingInvitations.map((invite) => ({
+      type: "invitation" as const,
+      id: invite.id,
+      name:
+        invite.publicMetadata?.firstName || invite.publicMetadata?.lastName
+          ? `${invite.publicMetadata?.firstName ?? ""} ${invite.publicMetadata?.lastName ?? ""}`.trim()
+          : "Invité",
+      email: invite.emailAddress,
+      status: "En attente",
+      role: invite.role,
+    })),
+  ];
 
   const isAdmin = useMemo(() => {
     const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
@@ -487,44 +512,6 @@ export default function Admin() {
                 Inviter
               </button>
             </div>
-            <div className="mt-4 space-y-2">
-              {pendingInvitations.map((invite) => (
-                <div
-                  key={invite.id}
-                  className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-sm"
-                >
-                  <div>
-                    <div className="text-gray-900">
-                      {invite.publicMetadata?.firstName ||
-                      invite.publicMetadata?.lastName
-                        ? `${invite.publicMetadata?.firstName ?? ""} ${invite.publicMetadata?.lastName ?? ""}`.trim()
-                        : "Invité"}
-                      <span className="text-gray-500"> • </span>
-                      {invite.emailAddress}
-                      {invite.role ? (
-                        <>
-                          <span className="text-gray-500"> • </span>
-                          <span className="text-xs text-gray-500">{invite.role}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    <div className="text-xs text-gray-500">En attente</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteInvitation(invite.id)}
-                    className="text-xs text-red-600 hover:text-red-700"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              ))}
-              {!pendingInvitations.length && (
-                <div className="text-sm text-gray-500">
-                  Aucune invitation en attente.
-                </div>
-              )}
-            </div>
           </div>
 
           <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -543,44 +530,41 @@ export default function Admin() {
               </div>
             ) : (
               <div className="mt-4 divide-y divide-gray-100 rounded-lg border border-gray-100">
-              <div className="grid grid-cols-[1fr_1fr_1fr_80px] gap-2 px-3 py-2 text-xs font-semibold uppercase text-gray-500">
-                <span>Membre</span>
-                <span>Email</span>
-                <span>Organisation</span>
-                <span className="text-right">Actions</span>
-              </div>
-              {visibleMembers.map((member) => (
-                <div
-                  key={member.id}
-                  className="grid grid-cols-[1fr_1fr_1fr_80px] items-center gap-2 px-3 py-2 text-sm"
-                >
-                  <span className="text-gray-900">
-                    {member.public_user_data?.first_name ||
-                    member.public_user_data?.last_name
-                      ? `${member.public_user_data?.first_name ?? ""} ${member.public_user_data?.last_name ?? ""}`.trim()
-                      : "—"}
-                  </span>
-                  <span className="text-gray-700">
-                    {member.email || member.public_user_data?.identifier || "—"}
-                  </span>
-                  <span className="text-gray-700">
-                    {selectedOrg?.name || "—"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveMember(member.public_user_data?.user_id)}
-                    className="justify-self-end text-xs text-red-600 hover:text-red-700"
+                <div className="grid grid-cols-[1fr_1fr_1fr_120px_80px] gap-2 px-3 py-2 text-xs font-semibold uppercase text-gray-500">
+                  <span>Membre</span>
+                  <span>Email</span>
+                  <span>Organisation</span>
+                  <span>Statut</span>
+                  <span className="text-right">Actions</span>
+                </div>
+                {mergedMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="grid grid-cols-[1fr_1fr_1fr_120px_80px] items-center gap-2 px-3 py-2 text-sm"
                   >
-                    Retirer
-                  </button>
-                </div>
-              ))}
-              {!visibleMembers.length && (
-                <div className="px-3 py-3 text-sm text-gray-500">
-                  Aucun membre dans cette organisation.
-                </div>
-              )}
-            </div>
+                    <span className="text-gray-900">{member.name}</span>
+                    <span className="text-gray-700">{member.email}</span>
+                    <span className="text-gray-700">{selectedOrg?.name || "—"}</span>
+                    <span className="text-xs text-gray-500">{member.status}</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        member.type === "member"
+                          ? handleRemoveMember(member.userId)
+                          : handleDeleteInvitation(member.id)
+                      }
+                      className="justify-self-end text-xs text-red-600 hover:text-red-700"
+                    >
+                      {member.type === "member" ? "Retirer" : "Supprimer"}
+                    </button>
+                  </div>
+                ))}
+                {!mergedMembers.length && (
+                  <div className="px-3 py-3 text-sm text-gray-500">
+                    Aucun membre ou invitation pour cette organisation.
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
