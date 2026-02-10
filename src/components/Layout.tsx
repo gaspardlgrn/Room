@@ -16,6 +16,7 @@ import {
   Settings,
   Video,
 } from 'lucide-react'
+import { SignOutButton } from '@clerk/clerk-react'
 import { RecentDocumentsProvider, useRecentDocuments } from '@/state/recentDocuments'
 import type { DocumentCategory } from '@/types'
 
@@ -120,9 +121,8 @@ function LayoutContent() {
     setDragOverProject(null)
   }
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
     setProfileMenuOpen(false)
-    window.location.assign('/')
   }
 
   const handleDragOver = (
@@ -401,15 +401,17 @@ function LayoutContent() {
                   <Settings className="h-4 w-4" />
                   Paramètres
                 </Link>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={handleLogout}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Déconnexion
-                </button>
+                <SignOutButton redirectUrl="/login">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={handleLogoutClick}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Déconnexion
+                  </button>
+                </SignOutButton>
               </div>
             )}
           </div>
