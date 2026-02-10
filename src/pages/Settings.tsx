@@ -1,15 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ExternalLink, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 
 export default function Settings() {
   const [searchParams] = useSearchParams()
-  const [status, setStatus] = useState<{
-    loading: boolean
-    connected: boolean
-    profile?: { displayName?: string; mail?: string; userPrincipalName?: string }
-    error?: string
-  }>({ loading: true, connected: false })
   const [composioState, setComposioState] = useState<{
     loading: boolean
     error?: string
@@ -28,35 +22,6 @@ export default function Settings() {
     connectedSlugs: Set<string>
   }>({ loading: true, toolkits: [], connectedSlugs: new Set() })
   const [composioSearch, setComposioSearch] = useState('')
-  const handleMicrosoftConnect = () => {
-    window.location.assign('/api/microsoft/oauth/start')
-  }
-
-  const handleMicrosoftDisconnect = async () => {
-    await fetch('/api/microsoft/logout', { method: 'POST' })
-    setStatus((prev) => ({ ...prev, connected: false, profile: undefined }))
-  }
-
-  const oauthMessage = useMemo(() => {
-    const statusParam = searchParams.get('microsoft')
-    const messageParam = searchParams.get('message')
-    if (!statusParam) {
-      return null
-    }
-    if (statusParam === 'connected') {
-      return { type: 'success', text: 'Compte Microsoft connecté.' }
-    }
-    if (statusParam === 'error') {
-      return {
-        type: 'error',
-        text: messageParam
-          ? decodeURIComponent(messageParam)
-          : 'Erreur lors de la connexion Microsoft.',
-      }
-    }
-    return null
-  }, [searchParams])
-
   const composioMessage = useMemo(() => {
     const statusParam = searchParams.get('composio')
     const toolkitParam = searchParams.get('toolkit')
@@ -76,26 +41,6 @@ export default function Settings() {
     }
     return null
   }, [searchParams])
-
-  const loadStatus = useCallback(async () => {
-    setStatus((prev) => ({ ...prev, loading: true }))
-    try {
-      const response = await fetch('/api/microsoft/status')
-      const data = await response.json()
-      setStatus({
-        loading: false,
-        connected: Boolean(data.connected),
-        profile: data.profile,
-        error: data.error,
-      })
-    } catch (error) {
-      setStatus({
-        loading: false,
-        connected: false,
-        error: error instanceof Error ? error.message : 'Erreur réseau.',
-      })
-    }
-  }, [])
 
   const loadComposioToolkits = useCallback(async (query: string) => {
     setComposioState((prev) => ({ ...prev, loading: true, error: undefined }))
@@ -324,16 +269,6 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    void loadStatus()
-  }, [loadStatus])
-
-  useEffect(() => {
-    if (searchParams.get('microsoft')) {
-      void loadStatus()
-    }
-  }, [loadStatus, searchParams])
-
-  useEffect(() => {
     const handle = window.setTimeout(() => {
       void loadComposioToolkits(composioSearch)
     }, 250)
@@ -370,111 +305,6 @@ export default function Settings() {
   return (
     <div className="space-y-8">
       <h1 className="text-3xl font-bold text-black">Paramètres</h1>
-
-      <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
-        {oauthMessage && (
-          <div
-            className={`rounded-md border px-4 py-3 text-sm ${
-              oauthMessage.type === 'success'
-                ? 'border-green-200 bg-green-50 text-green-700'
-                : 'border-red-200 bg-red-50 text-red-700'
-            }`}
-          >
-            {oauthMessage.text}
-          </div>
-        )}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-gray-800 uppercase tracking-wider">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-white ring-1 ring-gray-200">
-                <svg
-                  aria-label="Microsoft"
-                  viewBox="0 0 48 48"
-                  className="h-4 w-4"
-                >
-                  <rect x="4" y="4" width="18" height="18" fill="#F25022" />
-                  <rect x="26" y="4" width="18" height="18" fill="#7FBA00" />
-                  <rect x="4" y="26" width="18" height="18" fill="#00A4EF" />
-                  <rect x="26" y="26" width="18" height="18" fill="#FFB900" />
-                </svg>
-              </span>
-              <span>Connexion Microsoft 365</span>
-            </div>
-            <p className="text-sm text-gray-800">
-              Connectez votre compte Microsoft 365 pour récupérer automatiquement les
-              transcripts de réunions et enrichir vos notes.
-            </p>
-          </div>
-          <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
-              status.connected
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            {status.loading
-              ? 'Vérification...'
-              : status.connected
-                ? 'Connecté'
-                : 'Non connecté'}
-          </span>
-        </div>
-
-        <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-          Vous serez redirigé vers Microsoft pour autoriser l'accès à vos transcripts
-          Teams. Vous pourrez vous déconnecter à tout moment.
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleMicrosoftConnect}
-            className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900"
-          >
-            Se connecter à Microsoft 365
-            <ExternalLink className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleMicrosoftDisconnect}
-            disabled={!status.connected}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
-              status.connected
-                ? 'border border-red-200 text-red-600 hover:bg-red-50'
-                : 'border border-gray-200 text-gray-400'
-            }`}
-          >
-            Se déconnecter
-          </button>
-          <button
-            type="button"
-            onClick={loadStatus}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-          >
-            Rafraîchir le statut
-            <RefreshCw className="h-4 w-4" />
-          </button>
-        </div>
-
-        {status.connected && (
-          <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-800">
-            <div className="font-medium">Compte connecté</div>
-            <div className="text-gray-700">
-              {status.profile?.displayName || 'Utilisateur Microsoft'}
-            </div>
-            <div className="text-gray-500">
-              {status.profile?.mail || status.profile?.userPrincipalName || ''}
-            </div>
-          </div>
-        )}
-
-        {status.error && (
-          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {status.error}
-          </div>
-        )}
-      </section>
-
       <section className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
