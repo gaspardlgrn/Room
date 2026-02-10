@@ -166,26 +166,35 @@ export default function MarketAnalysisGenerator() {
           <label className="block text-sm font-medium text-gray-800 mb-1">
             Outils de recherche
           </label>
-          <select
-            multiple
-            value={researchTools}
-            onChange={(event) => {
-              const next = Array.from(event.target.selectedOptions).map(
-                (option) => option.value
+          <div className="grid gap-2 rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm sm:grid-cols-2">
+            {TOOL_OPTIONS.map((tool) => {
+              const checked = researchTools.includes(tool.value);
+              return (
+                <label
+                  key={tool.value}
+                  className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
+                    checked
+                      ? "border-blue-200 bg-blue-50 text-blue-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-blue-600"
+                    checked={checked}
+                    onChange={() => {
+                      setResearchTools((prev) =>
+                        prev.includes(tool.value)
+                          ? prev.filter((item) => item !== tool.value)
+                          : [...prev, tool.value]
+                      );
+                    }}
+                  />
+                  {tool.label}
+                </label>
               );
-              setResearchTools(next);
-            }}
-            className="w-full min-h-[150px] rounded-xl border border-gray-200 bg-white/80 px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-          >
-            {TOOL_OPTIONS.map((tool) => (
-              <option key={tool.value} value={tool.value}>
-                {tool.label}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-gray-500">
-            Maintenez Cmd/Ctrl pour sélectionner plusieurs outils.
-          </p>
+            })}
+          </div>
         </div>
       </div>
 
