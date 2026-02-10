@@ -35,12 +35,13 @@ export default function Admin() {
   const [members, setMembers] = useState<Membership[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("org:member");
   const [orgName, setOrgName] = useState("");
   const [orgSlug, setOrgSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
-    kind: "user" | "invitation" | "organization";
+    kind: "member" | "invitation" | "organization";
     id: string;
     label: string;
   } | null>(null);
@@ -141,7 +142,7 @@ export default function Admin() {
     try {
       await fetchWithAuth(`/api/admin/organizations/${selectedOrgId}/invitations`, {
         method: "POST",
-        body: JSON.stringify({ email: inviteEmail }),
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
       });
       setInviteEmail("");
       await loadInvitations(selectedOrgId);
@@ -201,16 +202,23 @@ export default function Admin() {
     }
   };
 
-  const handleDeleteUser = async (userId?: string) => {
+  const handleRemoveMember = async (userId?: string) => {
     if (!userId) return;
-    setConfirmAction({ kind: "user", id: userId, label: "Supprimer cet utilisateur ?" });
+    setConfirmAction({
+      kind: "member",
+      id: userId,
+      label: "Retirer ce membre de l'organisation ?",
+    });
   };
 
-  const confirmDeleteUser = async (userId: string) => {
+  const confirmRemoveMember = async (userId: string) => {
     setLoading(true);
     setError(null);
     try {
-      await fetchWithAuth(`/api/admin/users/${userId}`, { method: "DELETE" });
+      await fetchWithAuth(
+        `/api/admin/organizations/${selectedOrgId}/members/${userId}`,
+        { method: "DELETE" }
+      );
       await loadMembers(selectedOrgId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur suppression.");
@@ -252,8 +260,8 @@ export default function Admin() {
       await confirmDeleteOrganization(action.id);
       return;
     }
-    if (action.kind === "user") {
-      await confirmDeleteUser(action.id);
+    if (action.kind === "member") {
+      await confirmRemoveMember(action.id);
       return;
     }
     await confirmDeleteInvitation(action.id);
@@ -366,7 +374,7 @@ export default function Admin() {
                   Invitations
                 </div>
                 <div className="text-xs text-gray-500">
-                  Envoyez une invitation par email.
+                  Envoyez une invitation par email pour activer l'accès OAuth.
                 </div>
               </div>
               <div className="flex flex-1 gap-2 md:max-w-md">
@@ -377,6 +385,14 @@ export default function Admin() {
                   placeholder="email@domaine.com"
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                 />
+                <select
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value)}
+                  className="rounded-md border border-gray-300 px-2 py-2 text-sm"
+                >
+                  <option value="org:member">Membre</option>
+                  <option value="org:admin">Admin</option>
+                </select>
                 <button
                   type="button"
                   onClick={handleInvite}
@@ -431,10 +447,10 @@ export default function Admin() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleDeleteUser(member.public_user_data?.user_id)}
+                    onClick={() => handleRemoveMember(member.public_user_data?.user_id)}
                     className="text-xs text-red-600 hover:text-red-700"
                   >
-                    Supprimer
+                    Retirer
                   </button>
                 </div>
               ))}

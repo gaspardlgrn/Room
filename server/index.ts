@@ -19,6 +19,8 @@ const COMPOSIO_BASE_URL =
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || "";
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || "";
+const ADMIN_INVITE_ROLE =
+  process.env.ADMIN_INVITE_ROLE || "org:member";
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "gaspard@getroom.io")
   .split(/[,;\s]+/)
   .map((email) => email.toLowerCase())
@@ -620,6 +622,28 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
   }
 });
 
+app.delete(
+  "/api/admin/organizations/:orgId/members/:userId",
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
+      const { orgId, userId } = req.params;
+      const membership =
+        await clerkClient.organizations.deleteOrganizationMembership({
+          organizationId: orgId,
+          userId,
+        });
+      return res.json(membership);
+    } catch (error) {
+      console.error("Erreur Clerk delete membership:", error);
+      return res
+        .status(500)
+        .json({ error: formatClerkError(error, "Erreur Clerk.") });
+    }
+  }
+);
+
 app.delete("/api/admin/organizations/:orgId", requireAdmin, async (req, res) => {
   try {
     const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
@@ -660,10 +684,11 @@ app.post("/api/admin/organizations/:orgId/invitations", requireAdmin, async (req
     }
     const inviterUserId = (req as express.Request & { clerkUserId?: string })
       .clerkUserId;
+    const inviteRole = role || ADMIN_INVITE_ROLE;
     const invitation = await clerkClient.organizations.createOrganizationInvitation({
       organizationId: orgId,
       emailAddress: email,
-      role: role || "basic_member",
+      role: inviteRole,
       ...(inviterUserId ? { inviterUserId } : {}),
     });
     return res.json(invitation);
