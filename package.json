@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@azure/msal-node": "^5.0.3",
+    "@instantdb/react": "^0.22.126",
     "cors": "^2.8.5",
     "docx": "^8.5.0",
     "dotenv": "^16.4.5",

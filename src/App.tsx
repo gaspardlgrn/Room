@@ -7,13 +7,21 @@ import RecentDocument from './pages/RecentDocument'
 import Settings from './pages/Settings'
 import ExpertCallAnalysis from './pages/ExpertCallAnalysis'
 import MeetingNote from './pages/MeetingNote'
+import Login from './pages/Login'
+import { AuthProvider } from './contexts/AuthContext'
+import AuthGuard from './components/AuthGuard'
 import './App.css'
 
 const router = createBrowserRouter(
   [
+    { path: '/login', element: <Login /> },
     {
       path: '/',
-      element: <Layout />,
+      element: (
+        <AuthGuard>
+          <Layout />
+        </AuthGuard>
+      ),
       children: [
         { index: true, element: <Navigate to="/dashboard" replace /> },
         { path: 'dashboard', element: <Dashboard /> },
@@ -34,7 +42,11 @@ const router = createBrowserRouter(
 )
 
 function App() {
-  return <RouterProvider router={router} />
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  )
 }
 
 export default App
