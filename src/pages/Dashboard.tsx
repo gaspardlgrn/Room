@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BarChart3,
@@ -12,6 +13,8 @@ import {
 } from 'lucide-react'
 
 export default function Dashboard() {
+  const [selectedDoc, setSelectedDoc] =
+    useState<(typeof documentTypes)[number] | null>(null)
   const documentTypes = [
     {
       id: 1,
@@ -104,10 +107,11 @@ export default function Dashboard() {
         </h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {documentTypes.map((doc) => (
-            <Link
+            <button
               key={doc.id}
-              to={doc.href}
-              className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
+              type="button"
+              onClick={() => setSelectedDoc(doc)}
+              className="group rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
             >
               <div className="flex flex-col h-full">
                 <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gray-900 to-gray-700 shadow-sm">
@@ -124,7 +128,7 @@ export default function Dashboard() {
                   <span>{doc.tag}</span>
                 </div>
               </div>
-            </Link>
+            </button>
           ))}
           {/* Empty card slot */}
           <div className="rounded-xl border border-transparent p-4 opacity-0 pointer-events-none"></div>
@@ -177,6 +181,56 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+      {selectedDoc ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setSelectedDoc(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-gray-500">
+                  Module
+                </p>
+                <h3 className="mt-1 text-xl font-semibold text-gray-950">
+                  {selectedDoc.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDoc(null)}
+                className="rounded-md p-2 text-gray-500 hover:bg-gray-100"
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-gray-600">
+              {selectedDoc.description}
+            </p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedDoc(null)}
+                className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Fermer
+              </button>
+              <Link
+                to={selectedDoc.href}
+                className="rounded-md bg-gray-950 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900"
+              >
+                Ouvrir
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
