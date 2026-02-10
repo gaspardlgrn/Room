@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { instantDb } from "@/integrations/instantdb/client";
+import { instantDb, instantDbConfigured } from "@/integrations/instantdb/client";
 
 export default function Login() {
   const { user, allowed, loading, authError, signInWithProvider } = useAuth();
@@ -9,6 +9,7 @@ export default function Login() {
   const location = useLocation();
   const [callbackError, setCallbackError] = useState<string | null>(null);
   const [isExchanging, setIsExchanging] = useState(false);
+  const authUnavailable = !instantDbConfigured;
 
   const redirectPath = useMemo(() => {
     const state = location.state as { from?: string } | null;
@@ -26,6 +27,9 @@ export default function Login() {
     const code = params.get("code");
     const error = params.get("error");
     const errorDescription = params.get("error_description");
+    if (authUnavailable) {
+      return;
+    }
     if (error || errorDescription) {
       setCallbackError(errorDescription || error);
       return;
@@ -55,9 +59,11 @@ export default function Login() {
           Connectez-vous pour accéder à l’application.
         </p>
 
-        {(authError || callbackError) && (
+        {(authError || callbackError || authUnavailable) && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {callbackError || authError}
+            {authUnavailable
+              ? "Configuration InstantDB manquante."
+              : callbackError || authError}
           </div>
         )}
 
@@ -66,7 +72,7 @@ export default function Login() {
             type="button"
             onClick={() => signInWithProvider("google")}
             className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            disabled={isExchanging}
+            disabled={isExchanging || authUnavailable}
           >
             Se connecter avec Google
           </button>
@@ -74,7 +80,7 @@ export default function Login() {
             type="button"
             onClick={() => signInWithProvider("microsoft")}
             className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-            disabled={isExchanging}
+            disabled={isExchanging || authUnavailable}
           >
             Se connecter avec Microsoft
           </button>

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { User } from "@instantdb/react";
-import { instantDb } from "@/integrations/instantdb/client";
+import { instantDb, instantDbConfigured } from "@/integrations/instantdb/client";
 
 type AuthContextValue = {
   user: User | null;
@@ -46,6 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [instantUser, isLoading, error]);
 
   const signInWithProvider = useCallback((provider: "google" | "microsoft") => {
+    if (!instantDbConfigured) {
+      setAuthError("Configuration InstantDB manquante.");
+      return;
+    }
     setAuthError(null);
     const url = instantDb.auth.createAuthorizationURL({
       clientName: provider,

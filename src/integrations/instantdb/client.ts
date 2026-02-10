@@ -2,8 +2,21 @@ import { init } from "@instantdb/react";
 
 const appId = import.meta.env.VITE_INSTANT_APP_ID;
 
-if (!appId) {
-  throw new Error("VITE_INSTANT_APP_ID is not set");
-}
+export const instantDbConfigured = Boolean(appId);
 
-export const instantDb = init({ appId });
+const createStub = () =>
+  ({
+    useAuth: () => ({
+      isLoading: false,
+      user: null,
+      error: { message: "VITE_INSTANT_APP_ID manquant." },
+    }),
+    auth: {
+      createAuthorizationURL: () => "",
+      exchangeOAuthCode: () =>
+        Promise.reject(new Error("VITE_INSTANT_APP_ID manquant.")),
+      signOut: () => Promise.resolve(),
+    },
+  }) as unknown as ReturnType<typeof init>;
+
+export const instantDb = instantDbConfigured ? init({ appId }) : createStub();
