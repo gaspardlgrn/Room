@@ -42,35 +42,77 @@ export async function generateDocx(data: InvestmentData): Promise<Buffer> {
         new TextRun(data.companyName),
       ],
       spacing: { after: 100 },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: "Montant de l'investissement: ", bold: true }),
-        new TextRun(data.investmentAmount),
-      ],
-      spacing: { after: 100 },
-    }),
-    new Paragraph({
-      children: [
-        new TextRun({ text: "Secteur: ", bold: true }),
-        new TextRun(data.sector),
-      ],
-      spacing: { after: 300 },
     })
   );
 
+  if (data.websiteUrl) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Site web: ", bold: true }),
+          new TextRun(data.websiteUrl),
+        ],
+        spacing: { after: 100 },
+      })
+    );
+  }
+
+  if (data.investmentAmount) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Montant de l'investissement: ", bold: true }),
+          new TextRun(data.investmentAmount),
+        ],
+        spacing: { after: 100 },
+      })
+    );
+  }
+
+  if (data.sector) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Secteur: ", bold: true }),
+          new TextRun(data.sector),
+        ],
+        spacing: { after: 100 },
+      })
+    );
+  }
+
+  if (data.researchTools?.length) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: "Outils de recherche: ", bold: true }),
+          new TextRun(data.researchTools.join(", ")),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+  } else {
+    children.push(
+      new Paragraph({
+        spacing: { after: 300 },
+      })
+    );
+  }
+
   // Description de l'opportunité
-  children.push(
-    new Paragraph({
-      text: "Description de l'Opportunité",
-      heading: HeadingLevel.HEADING_1,
-      spacing: { before: 400, after: 200 },
-    }),
-    new Paragraph({
-      text: data.description,
-      spacing: { after: 300 },
-    })
-  );
+  if (data.description) {
+    children.push(
+      new Paragraph({
+        text: "Description de l'Opportunité",
+        heading: HeadingLevel.HEADING_1,
+        spacing: { before: 400, after: 200 },
+      }),
+      new Paragraph({
+        text: data.description,
+        spacing: { after: 300 },
+      })
+    );
+  }
 
   // Métriques clés
   if (data.keyMetrics) {

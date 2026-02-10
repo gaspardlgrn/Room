@@ -11,6 +11,8 @@ export interface InvestmentData {
   investmentAmount: string;
   sector: string;
   description: string;
+  websiteUrl?: string;
+  researchTools?: string[];
   keyMetrics?: string;
   marketAnalysis?: string;
   financialProjections?: string;

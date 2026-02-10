@@ -99,7 +99,10 @@ const DEFAULT_RECENTS: RecentDocument[] = [
   },
 ];
 
-const buildSourceUrl = (companyName: string) => {
+const buildSourceUrl = (companyName: string, websiteUrl?: string) => {
+  if (websiteUrl) {
+    return websiteUrl;
+  }
   const slug = companyName
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "")
@@ -146,14 +149,27 @@ export const createRecentDocument = ({
     executiveSummary: buildExecutiveSummary(investmentData),
   };
 
+  const titlePrefix: Record<DocumentCategory, string> = {
+    valuation: "Valorisation",
+    "market-analysis": "Analyse de marché",
+    "expert-call": "Analyse call expert",
+    "investment-note": "Note d'investissement",
+    "meeting-note": "Note de réunion",
+  };
+
   return {
     id: createId(),
-    title: `Valorisation - ${investmentData.companyName || "Nouveau document"}`,
+    title: `${titlePrefix[documentCategory]} - ${
+      investmentData.companyName || "Nouveau document"
+    }`,
     createdAt: new Date().toISOString(),
     documentType,
     documentCategory,
     investmentData: enrichedData,
-    sourceUrl: buildSourceUrl(investmentData.companyName),
+    sourceUrl: buildSourceUrl(
+      investmentData.companyName,
+      investmentData.websiteUrl
+    ),
     scope: "Global",
   };
 };

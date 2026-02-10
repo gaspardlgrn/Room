@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import CreateDocument from './CreateDocument'
 import ExpertCallAnalysis from './ExpertCallAnalysis'
 import MeetingNote from './MeetingNote'
+import MarketAnalysisGenerator from '@/components/MarketAnalysisGenerator'
 import {
   BarChart3,
   Briefcase,
@@ -105,9 +106,14 @@ export default function Dashboard() {
     }
   }, [selectedDoc])
 
+  const isMarketAnalysis = selectedDoc?.title === 'Analyse de marché'
+
   const renderModalContent = (doc: DashboardDoc) => {
     switch (doc.href) {
       case '/create':
+        if (doc.title === 'Analyse de marché') {
+          return <MarketAnalysisGenerator />
+        }
         return <CreateDocument />
       case '/expert-call':
         return <ExpertCallAnalysis />
@@ -234,12 +240,20 @@ export default function Dashboard() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-gray-500">
-                  Module
-                </p>
-                <h3 className="mt-1 text-xl font-semibold text-gray-950">
-                  {selectedDoc.title}
-                </h3>
+                {isMarketAnalysis ? (
+                  <h3 className="text-xl font-semibold text-gray-950">
+                    Générer une analyse de marché
+                  </h3>
+                ) : (
+                  <>
+                    <p className="text-xs uppercase tracking-wider text-gray-500">
+                      Module
+                    </p>
+                    <h3 className="mt-1 text-xl font-semibold text-gray-950">
+                      {selectedDoc.title}
+                    </h3>
+                  </>
+                )}
               </div>
               <button
                 type="button"
@@ -250,9 +264,11 @@ export default function Dashboard() {
                 ×
               </button>
             </div>
-            <p className="mt-3 text-sm text-gray-600">
-              {selectedDoc.description}
-            </p>
+            {!isMarketAnalysis ? (
+              <p className="mt-3 text-sm text-gray-600">
+                {selectedDoc.description}
+              </p>
+            ) : null}
             <div className="mt-6 max-h-[70vh] overflow-y-auto pr-2">
               {renderModalContent(selectedDoc)}
             </div>

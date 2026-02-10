@@ -67,48 +67,51 @@ export async function generatePptx(data: InvestmentData): Promise<Buffer> {
     color: "1E3A8A",
   });
 
+  const infoLines = [
+    { label: "Entreprise", value: data.companyName },
+    { label: "Site web", value: data.websiteUrl },
+    { label: "Montant", value: data.investmentAmount },
+    { label: "Secteur", value: data.sector },
+    data.researchTools?.length
+      ? { label: "Outils", value: data.researchTools.join(", ") }
+      : null,
+  ].filter(
+    (line): line is { label: string; value: string } =>
+      Boolean(line && line.value)
+  );
+
   const infoY = 1.2;
-  slide3.addText(`Entreprise: ${data.companyName}`, {
-    x: 0.5,
-    y: infoY,
-    w: 9,
-    h: 0.4,
-    fontSize: 18,
-  });
-  slide3.addText(`Montant: ${data.investmentAmount}`, {
-    x: 0.5,
-    y: infoY + 0.6,
-    w: 9,
-    h: 0.4,
-    fontSize: 18,
-  });
-  slide3.addText(`Secteur: ${data.sector}`, {
-    x: 0.5,
-    y: infoY + 1.2,
-    w: 9,
-    h: 0.4,
-    fontSize: 18,
+  infoLines.forEach((line, index) => {
+    slide3.addText(`${line.label}: ${line.value}`, {
+      x: 0.5,
+      y: infoY + index * 0.6,
+      w: 9,
+      h: 0.4,
+      fontSize: 18,
+    });
   });
 
   // Slide 4: Description de l'opportunité
-  const slide4 = pptx.addSlide();
-  slide4.addText("Description de l'Opportunité", {
-    x: 0.5,
-    y: 0.5,
-    w: 9,
-    h: 0.5,
-    fontSize: 32,
-    bold: true,
-    color: "1E3A8A",
-  });
-  slide4.addText(data.description, {
-    x: 0.5,
-    y: 1.2,
-    w: 9,
-    h: 4,
-    fontSize: 16,
-    bullet: false,
-  });
+  if (data.description) {
+    const slide4 = pptx.addSlide();
+    slide4.addText("Description de l'Opportunité", {
+      x: 0.5,
+      y: 0.5,
+      w: 9,
+      h: 0.5,
+      fontSize: 32,
+      bold: true,
+      color: "1E3A8A",
+    });
+    slide4.addText(data.description, {
+      x: 0.5,
+      y: 1.2,
+      w: 9,
+      h: 4,
+      fontSize: 16,
+      bullet: false,
+    });
+  }
 
   // Slide 5: Métriques clés
   if (data.keyMetrics) {
