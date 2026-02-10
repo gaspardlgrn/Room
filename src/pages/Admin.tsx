@@ -35,10 +35,12 @@ export default function Admin() {
   const [members, setMembers] = useState<Membership[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [orgSlug, setOrgSlug] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
-    kind: "user" | "invitation";
+    kind: "user" | "invitation" | "organization";
     id: string;
     label: string;
   } | null>(null);
@@ -61,9 +63,17 @@ export default function Admin() {
     });
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(text || "Erreur serveur.");
+      try {
+        const json = text ? JSON.parse(text) : null;
+        const message = json?.error || json?.message;
+        throw new Error(message || "Erreur serveur.");
+      } catch {
+        throw new Error(text || "Erreur serveur.");
+      }
     }
-    return response.json();
+    const text = await response.text();
+    if (!text) return null;
+    return JSON.parse(text);
   };
 
   const loadOrganizations = async () => {
@@ -121,7 +131,11 @@ export default function Admin() {
   }, [selectedOrgId]);
 
   const handleInvite = async () => {
-    if (!inviteEmail || !selectedOrgId) return;
+    if (!selectedOrgId) {
+      setError("Aucune organisation sélectionnée.");
+      return;
+    }
+    if (!inviteEmail) return;
     setLoading(true);
     setError(null);
     try {
@@ -133,6 +147,55 @@ export default function Admin() {
       await loadInvitations(selectedOrgId);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur invitation.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateOrganization = async () => {
+    if (!orgName.trim()) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const payload: { name: string; slug?: string } = { name: orgName.trim() };
+      if (orgSlug.trim()) {
+        payload.slug = orgSlug.trim();
+      }
+      const created = await fetchWithAuth("/api/admin/organizations", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      setOrgName("");
+      setOrgSlug("");
+      await loadOrganizations();
+      if (created?.id) {
+        setSelectedOrgId(created.id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur création.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteOrganization = async (orgId?: string) => {
+    if (!orgId) return;
+    setConfirmAction({
+      kind: "organization",
+      id: orgId,
+      label: "Supprimer cette organisation ?",
+    });
+  };
+
+  const confirmDeleteOrganization = async (orgId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await fetchWithAuth(`/api/admin/organizations/${orgId}`, { method: "DELETE" });
+      await loadOrganizations();
+      setSelectedOrgId("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur suppression.");
     } finally {
       setLoading(false);
     }
@@ -185,6 +248,10 @@ export default function Admin() {
     if (!confirmAction) return;
     const action = confirmAction;
     setConfirmAction(null);
+    if (action.kind === "organization") {
+      await confirmDeleteOrganization(action.id);
+      return;
+    }
     if (action.kind === "user") {
       await confirmDeleteUser(action.id);
       return;
@@ -238,6 +305,30 @@ export default function Admin() {
             Organisations
           </div>
           <div className="mt-3 space-y-2">
+            <input
+              type="text"
+              value={orgName}
+              onChange={(event) => setOrgName(event.target.value)}
+              placeholder="Nom de l'organisation"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <input
+              type="text"
+              value={orgSlug}
+              onChange={(event) => setOrgSlug(event.target.value)}
+              placeholder="Slug (optionnel)"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={handleCreateOrganization}
+              className="w-full rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
+              disabled={loading || !orgName.trim()}
+            >
+              Créer l'organisation
+            </button>
+          </div>
+          <div className="mt-3 space-y-2">
             {orgs.map((org) => (
               <button
                 key={org.id}
@@ -269,6 +360,15 @@ export default function Admin() {
                   Envoyez une invitation par email.
                 </div>
               </div>
+              {selectedOrgId && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteOrganization(selectedOrgId)}
+                  className="text-xs text-red-600 hover:text-red-700"
+                >
+                  Supprimer l'organisation
+                </button>
+              )}
               <div className="flex flex-1 gap-2 md:max-w-md">
                 <input
                   type="email"
@@ -281,7 +381,7 @@ export default function Admin() {
                   type="button"
                   onClick={handleInvite}
                   className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white"
-                  disabled={loading || !inviteEmail}
+                  disabled={loading || !inviteEmail || !selectedOrgId}
                 >
                   Inviter
                 </button>

@@ -117,6 +117,7 @@ async function requireAdmin(
     if (!isEmailAllowed && !isUserAllowed) {
       return res.status(403).json({ error: "Accès admin refusé." });
     }
+    (req as express.Request & { clerkUserId?: string }).clerkUserId = userId;
     return next();
   } catch (error) {
     console.error("Erreur auth admin Clerk:", error);
@@ -573,6 +574,29 @@ app.get("/api/admin/organizations", requireAdmin, async (_req, res) => {
   }
 });
 
+app.post("/api/admin/organizations", requireAdmin, async (req, res) => {
+  try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
+    const { name, slug } = req.body as { name?: string; slug?: string };
+    if (!name) {
+      return res.status(400).json({ error: "Nom d'organisation requis." });
+    }
+    const createdBy = (req as express.Request & { clerkUserId?: string })
+      .clerkUserId;
+    const org = await clerkClient.organizations.createOrganization({
+      name,
+      ...(slug ? { slug } : {}),
+      ...(createdBy ? { createdBy } : {}),
+    });
+    return res.json(org);
+  } catch (error) {
+    console.error("Erreur Clerk create org:", error);
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
+  }
+});
+
 app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res) => {
   try {
     const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
@@ -583,6 +607,20 @@ app.get("/api/admin/organizations/:orgId/members", requireAdmin, async (req, res
     return res.json(members);
   } catch (error) {
     console.error("Erreur Clerk members:", error);
+    return res
+      .status(500)
+      .json({ error: formatClerkError(error, "Erreur Clerk.") });
+  }
+});
+
+app.delete("/api/admin/organizations/:orgId", requireAdmin, async (req, res) => {
+  try {
+    const clerkClient = createClerkClient({ secretKey: CLERK_SECRET_KEY });
+    const { orgId } = req.params;
+    const org = await clerkClient.organizations.deleteOrganization(orgId);
+    return res.json(org);
+  } catch (error) {
+    console.error("Erreur Clerk delete org:", error);
     return res
       .status(500)
       .json({ error: formatClerkError(error, "Erreur Clerk.") });
