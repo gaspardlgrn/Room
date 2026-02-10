@@ -47,6 +47,7 @@ const router = createBrowserRouter(
 
 function App() {
   const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+  const clerkDomain = import.meta.env.VITE_CLERK_DOMAIN
   const clerkJSUrl =
     import.meta.env.VITE_CLERK_JS_URL ||
     'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'
@@ -60,7 +61,11 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={clerkKey} clerkJSUrl={clerkJSUrl}>
+    <ClerkProvider
+      publishableKey={clerkKey}
+      clerkJSUrl={clerkJSUrl}
+      domain={clerkDomain || undefined}
+    >
       <RouterProvider router={router} />
     </ClerkProvider>
   )
