@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ExternalLink, RefreshCw, ShieldCheck } from 'lucide-react'
+import { ExternalLink, RefreshCw } from 'lucide-react'
 
 export default function Settings() {
   const [searchParams] = useSearchParams()
