@@ -9,12 +9,16 @@ import ExpertCallAnalysis from './pages/ExpertCallAnalysis'
 import MeetingNote from './pages/MeetingNote'
 import Login from './pages/Login'
 import AuthGuard from './components/AuthGuard'
-import { ClerkProvider } from '@clerk/clerk-react'
+import {
+  AuthenticateWithRedirectCallback,
+  ClerkProvider,
+} from '@clerk/clerk-react'
 import './App.css'
 
 const router = createBrowserRouter(
   [
-    { path: '/login', element: <Login /> },
+    { path: '/login/sso-callback', element: <AuthenticateWithRedirectCallback /> },
+    { path: '/login/*', element: <Login /> },
     {
       path: '/',
       element: (
@@ -43,6 +47,9 @@ const router = createBrowserRouter(
 
 function App() {
   const clerkKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+  const clerkJSUrl =
+    import.meta.env.VITE_CLERK_JS_URL ||
+    'https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js'
 
   if (!clerkKey) {
     return (
@@ -53,7 +60,7 @@ function App() {
   }
 
   return (
-    <ClerkProvider publishableKey={clerkKey}>
+    <ClerkProvider publishableKey={clerkKey} clerkJSUrl={clerkJSUrl}>
       <RouterProvider router={router} />
     </ClerkProvider>
   )

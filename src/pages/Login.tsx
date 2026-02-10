@@ -1,10 +1,20 @@
-import { SignIn } from "@clerk/clerk-react";
+import { useSignIn } from "@clerk/clerk-react";
 import { useLocation } from "react-router-dom";
 
 export default function Login() {
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const unauthorized = params.get("unauthorized") === "1";
+  const { isLoaded, signIn } = useSignIn();
+
+  const handleOAuth = (strategy: "oauth_google" | "oauth_microsoft") => {
+    if (!isLoaded || !signIn) return;
+    void signIn.authenticateWithRedirect({
+      strategy,
+      redirectUrl: "/login/sso-callback",
+      redirectUrlComplete: "/dashboard",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-4">
@@ -22,14 +32,28 @@ export default function Login() {
           </div>
         )}
 
-        <div className="mt-6 flex justify-center">
-          <SignIn
-            routing="path"
-            path="/login"
-            afterSignInUrl="/dashboard"
-            afterSignUpUrl="/dashboard"
-            signUpUrl="/login"
-          />
+        <div className="mt-6 space-y-3">
+          <button
+            type="button"
+            onClick={() => handleOAuth("oauth_google")}
+            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            disabled={!isLoaded}
+          >
+            Se connecter avec Google
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOAuth("oauth_microsoft")}
+            className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            disabled={!isLoaded}
+          >
+            Se connecter avec Microsoft
+          </button>
+          {!isLoaded && (
+            <p className="text-center text-xs text-gray-500">
+              Chargement de l’authentification...
+            </p>
+          )}
         </div>
 
         <p className="mt-6 text-center text-xs text-gray-500">
