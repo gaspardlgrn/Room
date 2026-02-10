@@ -27,6 +27,10 @@ type Invitation = {
   email_address: string;
   status: string;
   role: string;
+  public_metadata?: {
+    firstName?: string;
+    lastName?: string;
+  };
 };
 
 export default function Admin() {
@@ -490,7 +494,20 @@ export default function Admin() {
                   className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-sm"
                 >
                   <div>
-                    <div className="text-gray-900">{invite.email_address}</div>
+                    <div className="text-gray-900">
+                      {invite.public_metadata?.firstName ||
+                      invite.public_metadata?.lastName
+                        ? `${invite.public_metadata?.firstName ?? ""} ${invite.public_metadata?.lastName ?? ""}`.trim()
+                        : "Invité"}
+                      <span className="text-gray-500"> • </span>
+                      {invite.email_address}
+                      {invite.role ? (
+                        <>
+                          <span className="text-gray-500"> • </span>
+                          <span className="text-xs text-gray-500">{invite.role}</span>
+                        </>
+                      ) : null}
+                    </div>
                     <div className="text-xs text-gray-500">En attente</div>
                   </div>
                   <button
