@@ -30,6 +30,11 @@ const COMPOSIO_BASE_URL =
   process.env.COMPOSIO_BASE_URL || "https://backend.composio.dev";
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || "";
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
+const EXA_API_KEY = process.env.EXA_API_KEY || "";
+const EXA_NUM_RESULTS = Math.min(
+  100,
+  Math.max(1, Number(process.env.EXA_NUM_RESULTS || 100))
+);
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || "";
 const ADMIN_INVITE_ROLE =
   process.env.ADMIN_INVITE_ROLE || "org:member";
@@ -292,6 +297,46 @@ async function composioRequest(
   return { ok: true, status: response.status, data };
 }
 
+type ExaResult = {
+  title?: string;
+  url?: string;
+  publishedDate?: string;
+  author?: string;
+  text?: string;
+  highlights?: string[];
+};
+
+async function exaSearch(query: string): Promise<ExaResult[]> {
+  if (!EXA_API_KEY) {
+    return [];
+  }
+  try {
+    const response = await fetch("https://api.exa.ai/search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": EXA_API_KEY,
+      },
+      body: JSON.stringify({
+        query,
+        type: "auto",
+        numResults: EXA_NUM_RESULTS,
+        contents: { text: true, highlights: true },
+      }),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("Erreur Exa:", text);
+      return [];
+    }
+    const data = (await response.json()) as { results?: ExaResult[] };
+    return Array.isArray(data?.results) ? data.results : [];
+  } catch (error) {
+    console.error("Erreur Exa:", error);
+    return [];
+  }
+}
+
 async function getMicrosoftAccessToken() {
   if (!msalClient || !microsoftAccount) {
     return null;
@@ -407,14 +452,39 @@ app.post("/api/chat", async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
     }
 
+    const exaResults = await exaSearch(message.trim());
+    const exaContext = exaResults
+      .map((result, index) => {
+        const title = result.title || "Source";
+        const url = result.url || "URL inconnue";
+        const published = result.publishedDate ? ` (${result.publishedDate})` : "";
+        const snippet =
+          result.highlights?.[0] ||
+          result.text ||
+          "";
+        const trimmedSnippet = snippet.slice(0, 1200);
+        return `[${index + 1}] ${title}${published}\n${url}\n${trimmedSnippet}`;
+      })
+      .join("\n\n");
+
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
           content:
-            "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais, structure et clair. Format attendu: titres en Markdown (##), paragraphes courts, listes a puces. Si pertinent, inclus une section 'Financing History' sous forme de tableau Markdown avec colonnes: Round, Date, Amount (USD), Post-Money Valuation (USD), Lead Investors. N'invente pas de donnees: si une information manque, indique-le explicitement. Utilise des notations de sources [1], [2] quand tu cites des informations (meme si les sources ne sont pas encore resolues).",
+            "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais, structure et clair. Format attendu: titres en Markdown (##), paragraphes courts, listes a puces. Si pertinent, inclus une section 'Financing History' sous forme de tableau Markdown avec colonnes: Round, Date, Amount (USD), Post-Money Valuation (USD), Lead Investors. N'invente pas de donnees: si une information manque, indique-le explicitement. Utilise des references de sources en notes de bas de page Markdown (ex: [^1]) et termine par une section '## Sources' avec des lignes de definition (ex: [^1]: Nom de la source). Si des sources web sont fournies, cite-les.",
         },
+        ...(exaContext
+          ? [
+              {
+                role: "system" as const,
+                content:
+                  "Sources web (Exa). Utilise uniquement ces sources pour les chiffres, et cite-les avec [^n]:\n" +
+                  exaContext,
+              },
+            ]
+          : []),
         {
           role: "user",
           content: message.trim(),
@@ -428,7 +498,13 @@ app.post("/api/chat", async (req, res) => {
     if (!reply) {
       return res.status(500).json({ error: "Réponse IA indisponible." });
     }
-    return res.json({ reply });
+    const sources = exaResults.map((result) => ({
+      title: result.title,
+      url: result.url,
+      publishedDate: result.publishedDate,
+      author: result.author,
+    }));
+    return res.json({ reply, sources });
   } catch (error) {
     console.error("Erreur chat IA:", error);
     return res.status(500).json({ error: "Erreur chat IA." });

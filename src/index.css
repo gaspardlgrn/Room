@@ -22,3 +22,99 @@ body {
 .font-display {
   font-family: "DM Serif Display", "Times New Roman", serif;
 }
+
+.ai-answer {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #1f2937;
+}
+
+.ai-answer__h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+  color: #111827;
+}
+
+.ai-answer__h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+  color: #111827;
+}
+
+.ai-answer__p {
+  margin: 0 0 0.75rem;
+  color: #374151;
+}
+
+.ai-answer__ul,
+.ai-answer__ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.ai-answer__li {
+  margin: 0.25rem 0;
+}
+
+.ai-answer__table-wrap {
+  margin: 0.75rem 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow-x: auto;
+  background: #ffffff;
+}
+
+.ai-answer__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.ai-answer__th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ai-answer__td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #374151;
+}
+
+.ai-answer__hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.ai-answer__strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.ai-answer sup {
+  vertical-align: baseline;
+}
+
+.ai-answer sup a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.35rem;
+  margin-left: 0.2rem;
+  background: #e7f7ef;
+  color: #1b6b3c;
+  border: 1px solid #bfe6d0;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-decoration: none;
+}

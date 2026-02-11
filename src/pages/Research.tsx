@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronRight, ExternalLink, Share2, UserRound } from "lucide-react";
+import MarkdownAnswer from "../components/MarkdownAnswer";
 
 export default function Research() {
   const [showSources, setShowSources] = useState(true);
@@ -7,7 +8,17 @@ export default function Research() {
   const [isSending, setIsSending] = useState(false);
   const storageKey = "chat:research";
   const [messages, setMessages] = useState<
-    Array<{ id: string; role: "user" | "assistant"; text: string }>
+    Array<{
+      id: string;
+      role: "user" | "assistant";
+      text: string;
+      sources?: Array<{
+        title?: string;
+        url?: string;
+        publishedDate?: string;
+        author?: string;
+      }>;
+    }>
   >([]);
 
   useEffect(() => {
@@ -57,17 +68,27 @@ export default function Research() {
         const text = await response.text();
         throw new Error(text || `Erreur chat (HTTP ${response.status})`);
       }
-      const data = (await response.json()) as { reply?: string };
+      const data = (await response.json()) as {
+        reply?: string;
+        sources?: Array<{
+          title?: string;
+          url?: string;
+          publishedDate?: string;
+          author?: string;
+        }>;
+      };
       const reply = data.reply?.trim() || "";
       if (!reply) {
         throw new Error("Réponse IA vide.");
       }
+      const sources = Array.isArray(data.sources) ? data.sources : [];
       setMessages((prev) => [
         ...prev,
         {
           id: `assistant-${Date.now() + 1}`,
           role: "assistant",
           text: reply,
+          sources,
         },
       ]);
     } catch (error) {
@@ -87,7 +108,7 @@ export default function Research() {
     }
   };
   return (
-    <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="flex flex-col items-center">
         <div className="w-full max-w-3xl">
           <div className="space-y-6">
@@ -103,8 +124,8 @@ export default function Research() {
             }
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
-                <article className="prose prose-sm max-w-none text-gray-800">
-                  <div className="whitespace-pre-wrap">{message.text}</div>
+                <article className="ai-answer text-gray-800">
+                  <MarkdownAnswer content={message.text} />
                 </article>
               </div>
             );
@@ -115,11 +136,17 @@ export default function Research() {
       </div>
 
       {showSources ? (
-        <aside className="relative hidden border-l border-gray-200 pl-4 lg:flex lg:flex-col lg:self-stretch">
+        <aside className="relative hidden border-l-2 border-gray-200 bg-white/80 pl-5 pr-4 shadow-[inset_1px_0_0_rgba(0,0,0,0.04)] lg:flex lg:flex-col lg:self-stretch">
           <div className="flex items-center justify-between pt-1">
-            <div className="text-xs text-gray-500">Sources</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Sources
+            </div>
             <div className="flex items-center gap-2 text-xs text-gray-500">
-              2
+              {(messages
+                .slice()
+                .reverse()
+                .find((item) => item.role === "assistant" && item.sources?.length)
+                ?.sources?.length ?? 0) || 0}
               <button className="rounded-full border border-gray-200 bg-white p-1">
                 <ChevronRight className="h-3 w-3" />
               </button>
@@ -133,8 +160,40 @@ export default function Research() {
           >
             ×
           </button>
-          <div className="mt-4 space-y-3" />
-      </aside>
+          <div className="mt-4 space-y-3">
+            {(messages
+              .slice()
+              .reverse()
+              .find((item) => item.role === "assistant" && item.sources?.length)
+              ?.sources || []
+            ).map((source, index) => (
+              <div
+                key={`${source.url || source.title || index}`}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 shadow-sm"
+              >
+                <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-gray-500">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                    {index + 1}
+                  </span>
+                  <span className="truncate">{source.title || "Source"}</span>
+                </div>
+                <div className="line-clamp-2 text-[11px] text-gray-500">
+                  {source.publishedDate ? `Publié: ${source.publishedDate}` : ""}
+                </div>
+                {source.url ? (
+                  <a
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+                  >
+                    Ouvrir
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </aside>
       ) : null}
 
       <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-80">
