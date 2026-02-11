@@ -99,13 +99,6 @@ function LayoutContent() {
     }
   }, [historyItems])
 
-  const pageMeta =
-    pageMetaByPath[location.pathname] ||
-    pageMetaByPath[`/${location.pathname.split('/')[1]}`] || {
-      title: 'Room',
-      placeholder: 'Search...',
-    }
-
   const isActive = (path: string) => location.pathname === path
   const sidebarWidth = useMemo(
     () => (sidebarCollapsed ? '4rem' : '16rem'),
