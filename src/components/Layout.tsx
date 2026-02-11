@@ -91,20 +91,7 @@ function LayoutContent() {
               {sidebarCollapsed ? 'r' : 'rogo'}
             </span>
           </div>
-          <div className="px-4 pb-2">
-            <button
-              type="button"
-              className={`flex w-full items-center rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
-                sidebarCollapsed ? 'justify-center gap-0' : 'gap-3 hover:bg-gray-50'
-              }`}
-              title="New Chat"
-            >
-              <Plus
-                className="h-5 w-5 text-gray-700"
-              />
-              {!sidebarCollapsed ? 'New Chat' : null}
-            </button>
-          </div>
+          {/* Ancien bouton New Chat au-dessus du menu supprimé : l'entrée est désormais dans la liste principale */}
           <nav className="px-3 py-2">
             {navigation.map((item) => (
               <Link
