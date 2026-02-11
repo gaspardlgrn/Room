@@ -600,7 +600,13 @@ app.post("/api/chat", async (req, res) => {
       })
       .join("\n\n");
 
-    const completion = await openai.chat.completions.create({
+    // Configurer les headers pour Server-Sent Events (SSE)
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Désactiver le buffering pour nginx
+
+    const stream = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
       messages: [
         {
@@ -632,22 +638,37 @@ app.post("/api/chat", async (req, res) => {
       ],
       temperature: 0.3,
       max_tokens: 900,
+      stream: true,
     });
 
-    const reply = completion.choices[0]?.message?.content?.trim();
-    if (!reply) {
-      return res.status(500).json({ error: "Réponse IA indisponible." });
+    let fullReply = "";
+    try {
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content || "";
+        if (content) {
+          fullReply += content;
+          // Envoyer chaque chunk au client
+          res.write(`data: ${JSON.stringify({ type: "chunk", content })}\n\n`);
+        }
+      }
+
+      // Envoyer les sources à la fin
+      const sources = exaResults.map((result) => ({
+        title: result.title,
+        url: result.url,
+        publishedDate: result.publishedDate,
+        author: result.author,
+        excerpt:
+          result.highlights?.[0] ||
+          (result.text ? result.text.slice(0, 260) : undefined),
+      }));
+      res.write(`data: ${JSON.stringify({ type: "done", sources })}\n\n`);
+    } catch (streamError) {
+      console.error("Erreur streaming:", streamError);
+      res.write(`data: ${JSON.stringify({ type: "error", error: "Erreur lors de la génération" })}\n\n`);
+    } finally {
+      res.end();
     }
-    const sources = exaResults.map((result) => ({
-      title: result.title,
-      url: result.url,
-      publishedDate: result.publishedDate,
-      author: result.author,
-      excerpt:
-        result.highlights?.[0] ||
-        (result.text ? result.text.slice(0, 260) : undefined),
-    }));
-    return res.json({ reply, sources });
   } catch (error) {
     console.error("Erreur chat IA:", error);
     return res.status(500).json({ error: "Erreur chat IA." });

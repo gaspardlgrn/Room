@@ -63,58 +63,116 @@ export default function HistoryChat() {
     setMessages([])
   }, [storageKey])
 
-  const handleAutoSend = async (messageText: string) => {
+  const sendMessageWithStreaming = async (messageText: string) => {
     if (isSending) return
     setIsSending(true)
+    
+    // Créer le message assistant initial vide
+    const assistantMessageId = `assistant-${Date.now()}`
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: assistantMessageId,
+        role: 'assistant',
+        text: '',
+        sources: [],
+      },
+    ])
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: messageText }),
       })
+
       if (!response.ok) {
         const text = await response.text()
         throw new Error(text || `Erreur chat (HTTP ${response.status})`)
       }
-      const data = (await response.json()) as {
-        reply?: string
-        sources?: Array<{
-          title?: string
-          url?: string
-          publishedDate?: string
-          author?: string
-          excerpt?: string
-        }>
+
+      if (!response.body) {
+        throw new Error('Réponse vide.')
       }
-      const reply = data.reply?.trim() || ''
-      if (!reply) {
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullText = ''
+      let sources: Array<{
+        title?: string
+        url?: string
+        publishedDate?: string
+        author?: string
+        excerpt?: string
+      }> = []
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              if (data.type === 'chunk' && data.content) {
+                fullText += data.content
+                // Mettre à jour le message assistant en temps réel
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, text: fullText }
+                      : msg
+                  )
+                )
+              } else if (data.type === 'done' && data.sources) {
+                sources = data.sources
+                // Mettre à jour avec les sources finales
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === assistantMessageId
+                      ? { ...msg, text: fullText, sources }
+                      : msg
+                  )
+                )
+              } else if (data.type === 'error') {
+                throw new Error(data.error || 'Erreur lors de la génération')
+              }
+            } catch (e) {
+              // Ignore les erreurs de parsing
+            }
+          }
+        }
+      }
+
+      if (!fullText.trim()) {
         throw new Error('Réponse IA vide.')
       }
-      const sources = Array.isArray(data.sources) ? data.sources : []
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          text: reply,
-          sources,
-        },
-      ])
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          text:
-            error instanceof Error
-              ? `Erreur: ${error.message}`
-              : 'Erreur lors de la requête.',
-        },
-      ])
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                text:
+                  error instanceof Error
+                    ? `Erreur: ${error.message}`
+                    : 'Erreur lors de la requête.',
+              }
+            : msg
+        )
+      )
     } finally {
       setIsSending(false)
     }
+  }
+
+  const handleAutoSend = async (messageText: string) => {
+    await sendMessageWithStreaming(messageText)
   }
 
   useEffect(() => {
@@ -141,56 +199,7 @@ export default function HistoryChat() {
     }
     setInput('')
     setMessages((prev) => [...prev, userMessage])
-    setIsSending(true)
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed }),
-      })
-      if (!response.ok) {
-        const text = await response.text()
-        throw new Error(text || `Erreur chat (HTTP ${response.status})`)
-      }
-      const data = (await response.json()) as {
-        reply?: string
-        sources?: Array<{
-          title?: string
-          url?: string
-          publishedDate?: string
-          author?: string
-          excerpt?: string
-        }>
-      }
-      const reply = data.reply?.trim() || ''
-      if (!reply) {
-        throw new Error('Réponse IA vide.')
-      }
-      const sources = Array.isArray(data.sources) ? data.sources : []
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now() + 1}`,
-          role: 'assistant',
-          text: reply,
-          sources,
-        },
-      ])
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `assistant-${Date.now() + 1}`,
-          role: 'assistant',
-          text:
-            error instanceof Error
-              ? `Erreur: ${error.message}`
-              : 'Erreur lors de la requête.',
-        },
-      ])
-    } finally {
-      setIsSending(false)
-    }
+    await sendMessageWithStreaming(trimmed)
   }
 
   return (
@@ -207,11 +216,26 @@ export default function HistoryChat() {
                 </div>
               )
             }
+            const isEmpty = !message.text || message.text.trim() === ''
+            const isLastMessage = messages[messages.length - 1]?.id === message.id
+            const showTyping = isEmpty && isLastMessage && isSending
+            
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
-                <article className="ai-answer text-gray-800">
-                  <MarkdownAnswer content={message.text} />
-                </article>
+                {showTyping ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <div className="flex gap-1">
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
+                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" />
+                    </div>
+                    <span className="text-xs italic">L'agent réfléchit...</span>
+                  </div>
+                ) : message.text ? (
+                  <article className="ai-answer text-gray-800">
+                    <MarkdownAnswer content={message.text} />
+                  </article>
+                ) : null}
               </div>
             )
           })}
