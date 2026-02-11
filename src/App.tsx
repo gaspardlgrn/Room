@@ -3,6 +3,7 @@ import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Research from './pages/Research'
 import Tasks from './pages/Tasks'
+import HistoryChat from './pages/HistoryChat'
 import CreateDocument from './pages/CreateDocument'
 import RecentDocument from './pages/RecentDocument'
 import Settings from './pages/Settings'
@@ -34,6 +35,7 @@ const router = createBrowserRouter(
         { path: 'documents', element: <Research /> },
         { path: 'research', element: <Research /> },
         { path: 'tasks', element: <Tasks /> },
+        { path: 'history/:id', element: <HistoryChat /> },
         { path: 'create', element: <CreateDocument /> },
         { path: 'recent/:id', element: <RecentDocument /> },
         { path: 'settings', element: <Settings /> },

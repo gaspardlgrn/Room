@@ -35,6 +35,10 @@ const pageMetaByPath: Record<
     placeholder: 'Search tasks...',
     actionLabel: 'New Task',
   },
+  '/history': {
+    title: 'History',
+    placeholder: 'Search history...',
+  },
   '/settings': {
     title: 'Settings',
     placeholder: 'Search settings...',
@@ -58,8 +62,16 @@ function LayoutContent() {
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
     { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
     { name: 'Shortcuts', href: '/settings', icon: Sparkles },
-    { name: 'History', href: '/dashboard', icon: History },
+    { name: 'History', href: '/history/1', icon: History },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
+  ]
+  const historyItems = [
+    { id: 1, label: 'Create comps table for FDS' },
+    { id: 2, label: "Google's AI initiatives and ad" },
+    { id: 3, label: "Today's news summary" },
+    { id: 4, label: "CFO MAP's salary and comp" },
+    { id: 5, label: 'Request to proofread attached' },
+    { id: 6, label: 'Create a proofreading prompt' },
   ]
 
   const pageMeta =
@@ -111,19 +123,31 @@ function LayoutContent() {
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
               History
             </div>
-            <div className="mt-2 space-y-2 text-sm text-gray-600">
-              {[
-                'Create comps table for FDS',
-                "Google's AI initiatives and ad",
-                "Today's news summary",
-                "CFO MAP's salary and comp",
-                'Request to proofread attached',
-                'Create a proofreading prompt',
-              ].map((item) => (
-                <div key={item} className="truncate px-2">
-                  {item}
-                </div>
-              ))}
+            <div className="mt-2">
+              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-500">
+                <Search className="h-3 w-3 text-gray-400" />
+                <input
+                  className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-400"
+                  placeholder="Search"
+                />
+              </div>
+            </div>
+            <div className="mt-3 space-y-2 text-sm text-gray-600">
+              {historyItems.map((item) => {
+                const href = `/history/${item.id}`
+                const active = location.pathname === href
+                return (
+                  <Link
+                    key={item.id}
+                    to={href}
+                    className={`block truncate rounded-md px-2 py-1 ${
+                      active ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              })}
               <button className="flex items-center gap-2 px-2 text-xs text-gray-500">
                 View all →
               </button>
