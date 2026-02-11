@@ -397,6 +397,44 @@ app.post("/api/generate-document", async (req, res) => {
   }
 });
 
+app.post("/api/chat", async (req, res) => {
+  try {
+    const { message } = req.body as { message?: string };
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message requis." });
+    }
+    if (!process.env.OPENAI_API_KEY || !openai) {
+      return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
+    }
+
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es un assistant IA concis et utile. Reponds en francais, ton professionnel.",
+        },
+        {
+          role: "user",
+          content: message.trim(),
+        },
+      ],
+      temperature: 0.3,
+      max_tokens: 500,
+    });
+
+    const reply = completion.choices[0]?.message?.content?.trim();
+    if (!reply) {
+      return res.status(500).json({ error: "Réponse IA indisponible." });
+    }
+    return res.json({ reply });
+  } catch (error) {
+    console.error("Erreur chat IA:", error);
+    return res.status(500).json({ error: "Erreur chat IA." });
+  }
+});
+
 app.get("/api/composio/toolkits", async (req, res) => {
   const params = new URLSearchParams();
   if (req.query.search) {

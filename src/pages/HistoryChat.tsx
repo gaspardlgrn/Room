@@ -60,6 +60,7 @@ export default function HistoryChat() {
   )
   const [showSources, setShowSources] = useState(true)
   const [input, setInput] = useState('')
+  const [isSending, setIsSending] = useState(false)
   const [messages, setMessages] = useState<
     Array<{ id: string; role: 'user' | 'assistant'; text: string }>
   >([
@@ -75,9 +76,9 @@ export default function HistoryChat() {
     },
   ])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = input.trim()
-    if (!trimmed) {
+    if (!trimmed || isSending) {
       return
     }
     const userMessage = {
@@ -85,14 +86,42 @@ export default function HistoryChat() {
       role: 'user' as const,
       text: trimmed,
     }
-    const aiMessage = {
-      id: `assistant-${Date.now() + 1}`,
-      role: 'assistant' as const,
-      text:
-        "Bien reçu. Je synthétise l'information et je reviens avec une réponse structurée.",
-    }
-    setMessages((prev) => [...prev, userMessage, aiMessage])
     setInput('')
+    setMessages((prev) => [...prev, userMessage])
+    setIsSending(true)
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: trimmed }),
+      })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || `Erreur chat (HTTP ${response.status})`)
+      }
+      const data = (await response.json()) as { reply?: string }
+      if (!data.reply) {
+        throw new Error('Réponse IA vide.')
+      }
+      setMessages((prev) => [
+        ...prev,
+        { id: `assistant-${Date.now() + 1}`, role: 'assistant', text: data.reply },
+      ])
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now() + 1}`,
+          role: 'assistant',
+          text:
+            error instanceof Error
+              ? `Erreur: ${error.message}`
+              : 'Erreur lors de la requête.',
+        },
+      ])
+    } finally {
+      setIsSending(false)
+    }
   }
 
   return (
@@ -212,7 +241,7 @@ export default function HistoryChat() {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') {
+              if (event.key === 'Enter' && !isSending) {
                 handleSend()
               }
             }}
@@ -221,6 +250,7 @@ export default function HistoryChat() {
           />
           <button
             onClick={handleSend}
+            disabled={isSending || !input.trim()}
             className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
             aria-label="Envoyer"
           >
