@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ChevronRight,
@@ -7,58 +7,10 @@ import {
   UserRound,
 } from 'lucide-react'
 
-const HISTORY_CONTENT = [
-  {
-    id: '1',
-    prompt: 'build a comps tables table for FDS vs peers (i.e. comps for rogo)',
-    summary:
-      "I'm gathering key financial metrics for FactSet and its competitors, including Bloomberg, S&P Global, Refinitiv, and Rogo. I'll analyze their Market Cap, Total Enterprise Value, EV/Sales, and EV/EBITDA over the last five periods to create a comprehensive comparative table.",
-    companies: ['FDS', 'Rogo', 'Bloomberg', 'S&P Global', 'Refinitiv'],
-  },
-  {
-    id: '2',
-    prompt: "Google's AI initiatives and ad",
-    summary:
-      'Summarizing Alphabet AI initiatives and ad platform updates with a focus on recent earnings calls and product launches.',
-    companies: ['Alphabet', 'Google', 'DeepMind'],
-  },
-  {
-    id: '3',
-    prompt: "Today's news summary",
-    summary:
-      'Compiling the top market-moving headlines across AI, fintech, and enterprise software.',
-    companies: ['Nvidia', 'OpenAI', 'Microsoft'],
-  },
-  {
-    id: '4',
-    prompt: "CFO MAP's salary and comp",
-    summary:
-      "Pulling compensation benchmarks for CFO roles across comparable mid-cap software companies.",
-    companies: ['Public comps', 'Peer group'],
-  },
-  {
-    id: '5',
-    prompt: 'Request to proofread attached',
-    summary:
-      'Reviewing attached document for clarity, tone, and correctness before final delivery.',
-    companies: ['Internal doc'],
-  },
-  {
-    id: '6',
-    prompt: 'Create a proofreading prompt',
-    summary:
-      'Drafting a reusable prompt template for proofreading tasks.',
-    companies: ['Template'],
-  },
-]
-
 export default function HistoryChat() {
   const { id } = useParams()
-  const content = useMemo(
-    () => HISTORY_CONTENT.find((item) => item.id === id) || HISTORY_CONTENT[0],
-    [id]
-  )
-  const storageKey = `chat:history:${content.id}`
+  const chatId = id || 'default'
+  const storageKey = `chat:history:${chatId}`
   const [showSources, setShowSources] = useState(true)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -91,7 +43,7 @@ export default function HistoryChat() {
         text: content.summary,
       },
     ])
-  }, [storageKey, content.prompt, content.summary])
+  }, [storageKey])
 
   useEffect(() => {
     try {
@@ -172,29 +124,6 @@ export default function HistoryChat() {
               </div>
             </div>
           ))}
-
-          <div>
-            <div className="text-xs text-gray-500">Working...</div>
-            <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 text-[10px] text-gray-500">
-                  ✓
-                </div>
-                <div className="text-sm text-gray-700">{content.summary}</div>
-              </div>
-              <div className="mt-4 text-xs text-gray-500">Identifying companies</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                {content.companies.map((company) => (
-                  <span
-                    key={company}
-                    className="rounded-full border border-gray-200 bg-gray-50 px-2 py-1"
-                  >
-                    {company}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -217,47 +146,7 @@ export default function HistoryChat() {
           >
             ×
           </button>
-          <div className="mt-4 space-y-3">
-          {[
-            {
-              name: 'FactSet Research Systems Inc.',
-              ticker: 'FDS',
-              site: 'factset.com',
-              metric: 'Market Cap',
-              value: '$13.7B',
-            },
-            {
-              name: 'S&P Global Inc.',
-              ticker: 'SPGI',
-              site: 'spglobal.com',
-              metric: 'Market Cap',
-              value: '$166.1B',
-            },
-          ].map((source) => (
-            <div
-              key={source.ticker}
-              className="rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-500">
-                  {source.ticker[0]}
-                </div>
-                <div className="font-semibold text-gray-800">
-                  {source.name}
-                </div>
-              </div>
-              <div className="mt-1 text-[11px] text-gray-400">{source.site}</div>
-              <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-2 py-2">
-                <div className="text-[11px] text-gray-500">
-                  {source.metric}
-                </div>
-                <div className="text-sm font-semibold text-gray-900">
-                  {source.value}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+          <div className="mt-4 space-y-3" />
       </aside>
       ) : null}
 

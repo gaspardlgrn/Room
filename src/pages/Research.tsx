@@ -23,19 +23,7 @@ export default function Research() {
     } catch {
       // Ignore storage errors
     }
-    setMessages([
-      {
-        id: "seed-user",
-        role: "user",
-        text: "build a comps tables table for FDS vs peers (i.e. comps for rogo)",
-      },
-      {
-        id: "seed-assistant",
-        role: "assistant",
-        text:
-          "I'm gathering key financial metrics and will assemble a comparative table with Market Cap, EV/Sales, and EV/EBITDA.",
-      },
-    ]);
+    setMessages([]);
   }, [storageKey]);
 
   useEffect(() => {
@@ -123,30 +111,6 @@ export default function Research() {
             ))}
           </div>
 
-          <div className="mt-10">
-            <div className="text-xs text-gray-500">Working...</div>
-            <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="text-sm text-gray-700">
-                Market Cap - FactSet Research Systems Inc., Rogo Technologies, Inc.
-                + 3 more
-              </div>
-              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                <div className="text-xs text-gray-500">Identifying companies</div>
-                <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                  {["FDS", "Rogo", "Bloomberg", "S&P Global", "Refinitiv"].map(
-                    (company) => (
-                      <span
-                        key={company}
-                        className="rounded-full border border-gray-200 bg-white px-2 py-1"
-                      >
-                        {company}
-                      </span>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -169,47 +133,7 @@ export default function Research() {
           >
             ×
           </button>
-          <div className="mt-4 space-y-3">
-          {[
-            {
-              name: "FactSet Research Systems Inc.",
-              ticker: "FDS",
-              site: "factset.com",
-              metric: "Market Cap",
-              value: "$13.7B",
-            },
-            {
-              name: "S&P Global Inc.",
-              ticker: "SPGI",
-              site: "spglobal.com",
-              metric: "Market Cap",
-              value: "$166.1B",
-            },
-          ].map((source) => (
-            <div
-              key={source.ticker}
-              className="rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-500">
-                  {source.ticker[0]}
-                </div>
-                <div className="font-semibold text-gray-800">
-                  {source.name}
-                </div>
-              </div>
-              <div className="mt-1 text-[11px] text-gray-400">{source.site}</div>
-              <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-2 py-2">
-                <div className="text-[11px] text-gray-500">
-                  {source.metric}
-                </div>
-                <div className="text-sm font-semibold text-gray-900">
-                  {source.value}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+          <div className="mt-4 space-y-3" />
       </aside>
       ) : null}
 
