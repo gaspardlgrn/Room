@@ -171,15 +171,8 @@ export default function Research() {
               const data = JSON.parse(line.slice(6));
               if (data.type === "chunk" && data.content) {
                 fullText += data.content;
-                // Mettre à jour le message assistant en temps réel
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMessageId
-                      ? { ...msg, text: fullText }
-                      : msg
-                  )
-                );
-              } else if (data.type === "done" && data.sources) {
+                // On accumule seulement, on affichera tout d'un coup à la fin
+              } else if (data.type === "done" && data.sources) { 
                 sources = data.sources;
                 // Mettre à jour avec les sources finales
                 setMessages((prev) =>
