@@ -138,27 +138,39 @@ export default function MarketAnalysisGenerator() {
         <label className="block text-sm font-medium text-gray-800 mb-2">
           Type de document
         </label>
-        <div className="flex gap-4">
-          <label className="flex items-center">
-            <input
-              type="radio"
-              value="docx"
-              checked={documentType === "docx"}
-              onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-              className="mr-2"
-            />
-            <span className="text-gray-800">Word (.docx)</span>
-          </label>
-          <label className="flex items-center">
-            <input
-              type="radio"
-              value="pptx"
-              checked={documentType === "pptx"}
-              onChange={(e) => setDocumentType(e.target.value as DocumentType)}
-              className="mr-2"
-            />
-            <span className="text-gray-800">PowerPoint (.pptx)</span>
-          </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            { value: "docx", label: "Word", hint: ".docx" },
+            { value: "pptx", label: "PowerPoint", hint: ".pptx" },
+          ].map((option) => {
+            const active = documentType === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setDocumentType(option.value as DocumentType)}
+                className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                  active
+                    ? "border-blue-200 bg-blue-50 text-blue-900"
+                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                }`}
+                aria-pressed={active}
+              >
+                <div>
+                  <div className="text-sm font-semibold">{option.label}</div>
+                  <div className="text-xs text-gray-500">{option.hint}</div>
+                </div>
+                <span
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                    active ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-500"
+                  }`}
+                  aria-hidden="true"
+                >
+                  {active ? "✓" : option.hint.replace(".", "")}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
