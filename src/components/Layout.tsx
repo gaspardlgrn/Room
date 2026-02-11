@@ -265,40 +265,6 @@ function LayoutContent() {
           className="flex-1 lg:ml-[var(--sidebar-width)]"
           onClick={() => setSidebarCollapsed(true)}
         >
-          <div className="sticky top-0 z-40 border-b border-gray-200 bg-white">
-            <div className="flex items-center gap-4 px-6 py-4">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 lg:hidden"
-              >
-                Menu
-              </button>
-              <div className="min-w-[120px] text-sm font-semibold text-gray-900">
-                {pageMeta.title}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-500 shadow-sm">
-                  <Search className="h-4 w-4 text-gray-400" />
-                  <input
-                    className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
-                    placeholder={pageMeta.placeholder}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {pageMeta.actionLabel ? (
-                  <button className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-sm">
-                    {pageMeta.actionLabel}
-                  </button>
-                ) : null}
-                <button className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
-                  Help
-                </button>
-              </div>
-            </div>
-          </div>
-
           <main className="px-6 py-8">
             <Outlet />
           </main>
