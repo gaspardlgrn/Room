@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, ExternalLink, Share2, UserRound } from "lucide-react";
+import { ExternalLink, Share2, UserRound } from "lucide-react";
 import MarkdownAnswer from "../components/MarkdownAnswer";
+import StructuredAnswer from "../components/StructuredAnswer";
 
 export default function Research() {
   const [showSources, setShowSources] = useState(true);
@@ -12,14 +13,39 @@ export default function Research() {
       id: string;
       role: "user" | "assistant";
       text: string;
+      structured?: {
+        title?: string;
+        summary?: string;
+        sections?: Array<{
+          heading?: string;
+          paragraphs?: string[];
+          bullets?: string[];
+        }>;
+        tables?: Array<{
+          title?: string;
+          columns?: string[];
+          rows?: string[][];
+        }>;
+        conclusion?: string;
+      };
       sources?: Array<{
         title?: string;
         url?: string;
         publishedDate?: string;
         author?: string;
+        excerpt?: string;
       }>;
     }>
   >([]);
+
+  const getHost = (url?: string) => {
+    if (!url) return "Domaine inconnu";
+    try {
+      return new URL(url).hostname;
+    } catch {
+      return url;
+    }
+  };
 
   useEffect(() => {
     try {
@@ -70,15 +96,31 @@ export default function Research() {
       }
       const data = (await response.json()) as {
         reply?: string;
+        structured?: {
+          title?: string;
+          summary?: string;
+          sections?: Array<{
+            heading?: string;
+            paragraphs?: string[];
+            bullets?: string[];
+          }>;
+          tables?: Array<{
+            title?: string;
+            columns?: string[];
+            rows?: string[][];
+          }>;
+          conclusion?: string;
+        };
         sources?: Array<{
           title?: string;
           url?: string;
           publishedDate?: string;
           author?: string;
+          excerpt?: string;
         }>;
       };
       const reply = data.reply?.trim() || "";
-      if (!reply) {
+      if (!reply && !data.structured) {
         throw new Error("Réponse IA vide.");
       }
       const sources = Array.isArray(data.sources) ? data.sources : [];
@@ -88,6 +130,7 @@ export default function Research() {
           id: `assistant-${Date.now() + 1}`,
           role: "assistant",
           text: reply,
+          structured: data.structured,
           sources,
         },
       ]);
@@ -125,7 +168,11 @@ export default function Research() {
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
                 <article className="ai-answer text-gray-800">
-                  <MarkdownAnswer content={message.text} />
+                  {message.structured ? (
+                    <StructuredAnswer answer={message.structured} />
+                  ) : (
+                    <MarkdownAnswer content={message.text} />
+                  )}
                 </article>
               </div>
             );
@@ -136,31 +183,36 @@ export default function Research() {
       </div>
 
       {showSources ? (
-        <aside className="fixed right-0 top-0 z-30 hidden h-screen w-[320px] border-l-2 border-gray-200 bg-white px-4 pt-20 lg:flex lg:flex-col">
-          <div className="flex items-center justify-between pt-1">
-            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <aside className="fixed right-0 top-0 z-30 hidden h-screen w-[320px] border-l-2 border-gray-200 bg-white px-4 pt-5 lg:flex lg:flex-col">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
               Sources
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+                {(messages
+                  .slice()
+                  .reverse()
+                  .find((item) => item.role === "assistant" && item.sources?.length)
+                  ?.sources?.length ?? 0) || 0}
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              {(messages
-                .slice()
-                .reverse()
-                .find((item) => item.role === "assistant" && item.sources?.length)
-                ?.sources?.length ?? 0) || 0}
-              <button className="rounded-full border border-gray-200 bg-white p-1">
-                <ChevronRight className="h-3 w-3" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowSources(false)}
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500"
+              aria-label="Fermer la colonne sources"
+            >
+              ×
+            </button>
           </div>
           <button
             type="button"
             onClick={() => setShowSources(false)}
-            className="absolute right-4 top-4 hidden h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500 lg:flex"
+            className="sr-only"
             aria-label="Fermer la colonne sources"
           >
             ×
           </button>
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-4 overflow-y-auto pr-1">
             {(messages
               .slice()
               .reverse()
@@ -169,27 +221,60 @@ export default function Research() {
             ).map((source, index) => (
               <div
                 key={`${source.url || source.title || index}`}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600 shadow-sm"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-xs text-gray-600 shadow-sm"
               >
-                <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-gray-500">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-semibold text-emerald-700">
                     {index + 1}
                   </span>
-                  <span className="truncate">{source.title || "Source"}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white text-sm font-semibold text-gray-700">
+                        {(source.title || source.url || "S").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">
+                          {source.title || "Source"}
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {getHost(source.url)}
+                        </div>
+                      </div>
+                    </div>
+                    {source.excerpt ? (
+                      <p className="mt-2 text-[11px] text-gray-600">
+                        {source.excerpt}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 text-[11px] font-semibold text-gray-500">
+                      Overview
+                    </div>
+                    <div className="mt-1 grid grid-cols-2 gap-2 text-[11px] text-gray-600">
+                      <div>
+                        <div className="text-gray-400">Name</div>
+                        <div className="font-semibold text-gray-700">
+                          {source.title || "Source"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400">Published</div>
+                        <div className="font-semibold text-gray-700">
+                          {source.publishedDate || "N/A"}
+                        </div>
+                      </div>
+                    </div>
+                    {source.url ? (
+                      <a
+                        href={source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
+                      >
+                        Ouvrir
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="line-clamp-2 text-[11px] text-gray-500">
-                  {source.publishedDate ? `Publié: ${source.publishedDate}` : ""}
-                </div>
-                {source.url ? (
-                  <a
-                    href={source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
-                  >
-                    Ouvrir
-                  </a>
-                ) : null}
               </div>
             ))}
           </div>
