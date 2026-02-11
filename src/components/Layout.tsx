@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   CalendarClock,
@@ -67,7 +67,7 @@ function LayoutContent() {
     { name: 'History', href: '/history/1', icon: History },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ]
-  const historyItems = [
+  const defaultHistoryItems = [
     { id: 1, label: 'Create comps table for FDS' },
     { id: 2, label: "Google's AI initiatives and ad" },
     { id: 3, label: "Today's news summary" },
@@ -75,6 +75,29 @@ function LayoutContent() {
     { id: 5, label: 'Request to proofread attached' },
     { id: 6, label: 'Create a proofreading prompt' },
   ]
+  const [historyItems, setHistoryItems] = useState(defaultHistoryItems)
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('history:items')
+      if (raw) {
+        const parsed = JSON.parse(raw) as typeof defaultHistoryItems
+        if (Array.isArray(parsed)) {
+          setHistoryItems(parsed)
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('history:items', JSON.stringify(historyItems))
+    } catch {
+      // ignore storage errors
+    }
+  }, [historyItems])
 
   const pageMeta =
     pageMetaByPath[location.pathname] ||
@@ -168,17 +191,30 @@ function LayoutContent() {
                 {historyItems.map((item) => {
                   const href = `/history/${item.id}`
                   const active = location.pathname === href
-                  return (
-                    <Link
-                      key={item.id}
-                      to={href}
-                      className={`block truncate rounded-md px-2 py-1 ${
-                        active ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50'
-                      }`}
-                    >
+                return (
+                  <div
+                    key={item.id}
+                    className={`group flex items-center justify-between gap-2 rounded-md px-2 py-1 ${
+                      active ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <Link to={href} className="truncate">
                       {item.label}
                     </Link>
-                  )
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setHistoryItems((prev) =>
+                          prev.filter((entry) => entry.id !== item.id)
+                        )
+                      }
+                      className="hidden text-xs text-gray-400 hover:text-gray-600 group-hover:block"
+                      aria-label="Supprimer de l'historique"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
                 })}
                 <button className="flex items-center gap-2 px-2 text-xs text-gray-500">
                   View all →
