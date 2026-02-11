@@ -22,6 +22,7 @@ function LayoutContent() {
   const { user } = useUser()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [activeNavItem, setActiveNavItem] = useState<string | null>(null)
   const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? ''
   const isAdminUser = userEmail === 'gaspard@getroom.io'
 
@@ -67,10 +68,28 @@ function LayoutContent() {
     }
   }, [historyItems])
 
-  const isActiveItem = (item: { name: string; href: string }) => {
+  // Initialiser l'état actif basé sur le pathname actuel
+  useEffect(() => {
     if (location.pathname === '/dashboard') {
-      return item.name === 'Home'
+      // Si on est sur /dashboard et qu'aucun élément n'est encore sélectionné, mettre "Home" par défaut
+      if (activeNavItem === null) {
+        setActiveNavItem('Home')
+      }
+    } else {
+      // Pour les autres routes, trouver l'élément correspondant
+      const matchingItem = navigation.find((item) => location.pathname === item.href)
+      if (matchingItem) {
+        setActiveNavItem(matchingItem.name)
+      }
     }
+  }, [location.pathname])
+
+  const isActiveItem = (item: { name: string; href: string }) => {
+    // Si on est sur /dashboard, utiliser l'état local pour déterminer quel élément est actif
+    if (location.pathname === '/dashboard') {
+      return activeNavItem === item.name
+    }
+    // Pour les autres routes, utiliser le pathname
     return location.pathname === item.href
   }
   const sidebarWidth = useMemo(
@@ -103,6 +122,7 @@ function LayoutContent() {
                 key={item.name}
                 to={item.href}
                 title={item.name}
+                onClick={() => setActiveNavItem(item.name)}
                 className={`flex items-center rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
                   isActiveItem(item)
                     ? 'bg-gray-100 text-gray-900'
