@@ -306,144 +306,6 @@ type ExaResult = {
   highlights?: string[];
 };
 
-type StructuredAnswer = {
-  title?: string;
-  summary?: string;
-  sections?: Array<{
-    heading?: string;
-    paragraphs?: string[];
-    bullets?: string[];
-  }>;
-  tables?: Array<{
-    title?: string;
-    columns?: string[];
-    rows?: string[][];
-  }>;
-  conclusion?: string;
-};
-
-function structuredToMarkdown(answer: StructuredAnswer | null): string {
-  if (!answer) return "";
-  const parts: string[] = [];
-  if (answer.title) {
-    parts.push(`## ${answer.title}`);
-  }
-  if (answer.summary) {
-    parts.push(answer.summary);
-  }
-  (answer.sections || []).forEach((section) => {
-    if (section.heading) {
-      parts.push(`## ${section.heading}`);
-    }
-    (section.paragraphs || []).forEach((paragraph) => {
-      if (paragraph) parts.push(paragraph);
-    });
-    if (section.bullets && section.bullets.length > 0) {
-      parts.push(section.bullets.map((bullet) => `- ${bullet}`).join("\n"));
-    }
-  });
-  (answer.tables || []).forEach((table) => {
-    if (table.title) parts.push(`## ${table.title}`);
-    const columns = table.columns || [];
-    const rows = table.rows || [];
-    if (columns.length > 0) {
-      parts.push(`| ${columns.join(" | ")} |`);
-      parts.push(`| ${columns.map(() => "---").join(" | ")} |`);
-      rows.forEach((row) => {
-        const cells = row.map((cell) => (cell ?? "").toString());
-        parts.push(`| ${cells.join(" | ")} |`);
-      });
-    }
-  });
-  if (answer.conclusion) {
-    parts.push(`## Conclusion`);
-    parts.push(answer.conclusion);
-  }
-  return parts.join("\n\n");
-}
-
-function parseTextToStructured(text: string): StructuredAnswer {
-  const lines = text.split(/\r?\n/);
-  const sections: StructuredAnswer["sections"] = [];
-  const tables: StructuredAnswer["tables"] = [];
-  let currentSection: { heading?: string; paragraphs?: string[]; bullets?: string[] } | null = null;
-  let currentTable: { title?: string; columns?: string[]; rows?: string[][] } | null = null;
-
-  const pushSection = () => {
-    if (!currentSection) return;
-    if (
-      (currentSection.paragraphs && currentSection.paragraphs.length > 0) ||
-      (currentSection.bullets && currentSection.bullets.length > 0) ||
-      currentSection.heading
-    ) {
-      sections.push(currentSection);
-    }
-    currentSection = null;
-  };
-
-  const pushTable = () => {
-    if (!currentTable) return;
-    if (currentTable.columns && currentTable.columns.length > 0) {
-      tables.push(currentTable);
-    }
-    currentTable = null;
-  };
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) {
-      if (currentTable) {
-        pushTable();
-      }
-      continue;
-    }
-
-    if (line.startsWith("## ")) {
-      pushTable();
-      pushSection();
-      currentSection = { heading: line.replace(/^##\s+/, ""), paragraphs: [], bullets: [] };
-      continue;
-    }
-
-    if (line.startsWith("- ") || line.startsWith("• ")) {
-      if (!currentSection) currentSection = { paragraphs: [], bullets: [] };
-      currentSection.bullets = currentSection.bullets || [];
-      currentSection.bullets.push(line.replace(/^[-•]\s+/, ""));
-      continue;
-    }
-
-    if (line.startsWith("|") && line.endsWith("|")) {
-      const cells = line
-        .slice(1, -1)
-        .split("|")
-        .map((cell) => cell.trim());
-      if (!currentTable) {
-        currentTable = { columns: cells, rows: [] };
-        continue;
-      }
-      if (currentTable.columns && currentTable.columns.length === cells.length) {
-        if (!cells.every((cell) => /^-+$/.test(cell))) {
-          currentTable.rows = currentTable.rows || [];
-          currentTable.rows.push(cells);
-        }
-      }
-      continue;
-    }
-
-    if (!currentSection) currentSection = { paragraphs: [], bullets: [] };
-    currentSection.paragraphs = currentSection.paragraphs || [];
-    currentSection.paragraphs.push(line);
-  }
-
-  pushTable();
-  pushSection();
-
-  return {
-    summary: sections.length > 0 ? sections[0]?.paragraphs?.[0] : undefined,
-    sections,
-    tables,
-  };
-}
 
 async function exaSearch(query: string): Promise<ExaResult[]> {
   if (!EXA_API_KEY) {
@@ -473,6 +335,32 @@ async function exaSearch(query: string): Promise<ExaResult[]> {
   } catch (error) {
     console.error("Erreur Exa:", error);
     return [];
+  }
+}
+
+async function getComposioContext(): Promise<string> {
+  if (!COMPOSIO_API_KEY) {
+    return "";
+  }
+  try {
+    const connected = await composioRequest(
+      `/api/v3/connected_accounts?user_id=${encodeURIComponent(COMPOSIO_USER_ID)}`
+    );
+    if (!connected.ok) {
+      return "";
+    }
+    const items = connected.data?.items ?? [];
+    const slugs = items
+      .map((item: any) => item?.toolkit?.slug || item?.toolkit_slug || item?.slug)
+      .filter(Boolean);
+    const unique = Array.from(new Set(slugs));
+    if (unique.length === 0) {
+      return "Aucun toolkit Composio connecté.";
+    }
+    return `Toolkits Composio connectés: ${unique.join(", ")}.`;
+  } catch (error) {
+    console.error("Erreur Composio:", error);
+    return "";
   }
 }
 
@@ -592,6 +480,7 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const exaResults = await exaSearch(message.trim());
+    const composioContext = await getComposioContext();
     const exaContext = exaResults
       .map((result, index) => {
         const title = result.title || "Source";
@@ -608,12 +497,11 @@ app.post("/api/chat", async (req, res) => {
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
-      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
-            "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais, structure et clair. Retourne uniquement un objet JSON valide avec les champs: title, summary, sections (array de {heading, paragraphs[], bullets[]}), tables (array de {title, columns[], rows[][]}), conclusion. Si pertinent, inclus une table 'Financing History' avec colonnes: Round, Date, Amount (USD), Post-Money Valuation (USD), Lead Investors. N'invente pas de donnees: si une information manque, indique-le explicitement dans les paragraphs/bullets.",
+            "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais, structure et clair. Format attendu: Markdown uniquement (pas de JSON). Utilise des titres (##), paragraphes courts, listes a puces, et des tableaux Markdown quand utile. Si pertinent, inclus une section 'Financing History' sous forme de tableau avec colonnes: Round, Date, Amount (USD), Post-Money Valuation (USD), Lead Investors. N'invente pas de donnees: si une information manque, indique-le explicitement. Termine par '## Sources' et cite les sources avec [^1].",
         },
         ...(exaContext
           ? [
@@ -622,6 +510,14 @@ app.post("/api/chat", async (req, res) => {
                 content:
                   "Sources web (Exa). Utilise uniquement ces sources pour les chiffres, et cite-les avec [^n]:\n" +
                   exaContext,
+              },
+            ]
+          : []),
+        ...(composioContext
+          ? [
+              {
+                role: "system" as const,
+                content: `Contexte Composio: ${composioContext}`,
               },
             ]
           : []),
@@ -634,19 +530,9 @@ app.post("/api/chat", async (req, res) => {
       max_tokens: 500,
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim();
-    if (!raw) {
-      return res.status(500).json({ error: "Réponse IA indisponible." });
-    }
-    let structured: StructuredAnswer | null = null;
-    try {
-      structured = JSON.parse(raw) as StructuredAnswer;
-    } catch (error) {
-      structured = parseTextToStructured(raw);
-    }
-    let reply = structuredToMarkdown(structured);
+    const reply = completion.choices[0]?.message?.content?.trim();
     if (!reply) {
-      reply = raw;
+      return res.status(500).json({ error: "Réponse IA indisponible." });
     }
     const sources = exaResults.map((result) => ({
       title: result.title,
@@ -657,7 +543,7 @@ app.post("/api/chat", async (req, res) => {
         result.highlights?.[0] ||
         (result.text ? result.text.slice(0, 260) : undefined),
     }));
-    return res.json({ reply, sources, structured });
+    return res.json({ reply, sources });
   } catch (error) {
     console.error("Erreur chat IA:", error);
     return res.status(500).json({ error: "Erreur chat IA." });

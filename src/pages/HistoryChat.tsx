@@ -6,7 +6,6 @@ import {
   UserRound,
 } from 'lucide-react'
 import MarkdownAnswer from '../components/MarkdownAnswer'
-import StructuredAnswer from '../components/StructuredAnswer'
 
 export default function HistoryChat() {
   const { id } = useParams()
@@ -20,21 +19,6 @@ export default function HistoryChat() {
       id: string
       role: 'user' | 'assistant'
       text: string
-      structured?: {
-        title?: string
-        summary?: string
-        sections?: Array<{
-          heading?: string
-          paragraphs?: string[]
-          bullets?: string[]
-        }>
-        tables?: Array<{
-          title?: string
-          columns?: string[]
-          rows?: string[][]
-        }>
-        conclusion?: string
-      }
       sources?: Array<{
         title?: string
         url?: string
@@ -54,111 +38,13 @@ export default function HistoryChat() {
     }
   }
 
-  const parseStructured = (text?: string) => {
-    if (!text) return null
-    let cleaned = text.trim()
-    if (cleaned.startsWith('```')) {
-      cleaned = cleaned.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
-    }
-    const normalize = (value: string) => {
-      let normalized = value.trim()
-      const start = normalized.indexOf('{')
-      const end = normalized.lastIndexOf('}')
-      if (start >= 0 && end > start) {
-        normalized = normalized.slice(start, end + 1)
-      }
-      for (let i = 0; i < 5; i += 1) {
-        normalized = normalized.replace(/^\{\s*\{/, '{')
-      }
-      return normalized
-    }
-    const tryParse = (value: string) => {
-      try {
-        return JSON.parse(value) as {
-          title?: string
-          summary?: string
-          sections?: Array<{
-            heading?: string
-            paragraphs?: string[]
-            bullets?: string[]
-          }>
-          tables?: Array<{
-            title?: string
-            columns?: string[]
-            rows?: string[][]
-          }>
-          conclusion?: string
-        }
-      } catch {
-        return null
-      }
-    }
-    const normalized = normalize(cleaned)
-    let parsed = tryParse(normalized)
-    if (!parsed && normalized.startsWith('{{')) {
-      parsed = tryParse(normalized.slice(1))
-    }
-    if (!parsed) return null
-    const hasContent =
-      !!parsed.title ||
-      !!parsed.summary ||
-      (parsed.sections?.length ?? 0) > 0 ||
-      (parsed.tables?.length ?? 0) > 0 ||
-      !!parsed.conclusion
-    return hasContent ? parsed : null
-  }
-
-  const normalizeMessage = (
-    message: {
-      id: string
-      role: 'user' | 'assistant'
-      text: string
-      structured?: {
-        title?: string
-        summary?: string
-        sections?: Array<{
-          heading?: string
-          paragraphs?: string[]
-          bullets?: string[]
-        }>
-        tables?: Array<{
-          title?: string
-          columns?: string[]
-          rows?: string[][]
-        }>
-        conclusion?: string
-      }
-      sources?: Array<{
-        title?: string
-        url?: string
-        publishedDate?: string
-        author?: string
-        excerpt?: string
-      }>
-    }
-  ) => {
-    if (message.role !== 'assistant') return message
-    const parsed = message.structured || parseStructured(message.text)
-    const jsonish =
-      message.text.trim().includes('"title"') ||
-      message.text.trim().includes('"sections"') ||
-      (message.text.includes('{') && message.text.includes('}'))
-    if (parsed) {
-      return { ...message, structured: parsed, text: jsonish ? '' : message.text }
-    }
-    if (jsonish) {
-      return { ...message, text: 'Réponse en cours de normalisation.' }
-    }
-    return message
-  }
-
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey)
       if (raw) {
         const parsed = JSON.parse(raw) as typeof messages
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed.map(normalizeMessage))
+          setMessages(parsed)
           return
         }
       }
@@ -201,21 +87,6 @@ export default function HistoryChat() {
       }
       const data = (await response.json()) as {
         reply?: string
-        structured?: {
-          title?: string
-          summary?: string
-          sections?: Array<{
-            heading?: string
-            paragraphs?: string[]
-            bullets?: string[]
-          }>
-          tables?: Array<{
-            title?: string
-            columns?: string[]
-            rows?: string[][]
-          }>
-          conclusion?: string
-        }
         sources?: Array<{
           title?: string
           url?: string
@@ -225,7 +96,7 @@ export default function HistoryChat() {
         }>
       }
       const reply = data.reply?.trim() || ''
-      if (!reply && !data.structured) {
+      if (!reply) {
         throw new Error('Réponse IA vide.')
       }
       const sources = Array.isArray(data.sources) ? data.sources : []
@@ -235,7 +106,6 @@ export default function HistoryChat() {
           id: `assistant-${Date.now() + 1}`,
           role: 'assistant',
           text: reply,
-          structured: data.structured,
           sources,
         },
       ])
@@ -270,15 +140,10 @@ export default function HistoryChat() {
                 </div>
               )
             }
-            const structured = message.structured || parseStructured(message.text)
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
                 <article className="ai-answer text-gray-800">
-                  {structured ? (
-                    <StructuredAnswer answer={structured} />
-                  ) : (
-                    <MarkdownAnswer content={message.text} />
-                  )}
+                  <MarkdownAnswer content={message.text} />
                 </article>
               </div>
             )
