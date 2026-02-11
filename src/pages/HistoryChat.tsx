@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ChevronRight,
@@ -58,23 +58,48 @@ export default function HistoryChat() {
     () => HISTORY_CONTENT.find((item) => item.id === id) || HISTORY_CONTENT[0],
     [id]
   )
+  const storageKey = `chat:history:${content.id}`
   const [showSources, setShowSources] = useState(true)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [messages, setMessages] = useState<
     Array<{ id: string; role: 'user' | 'assistant'; text: string }>
-  >([
-    {
-      id: 'seed-user',
-      role: 'user',
-      text: content.prompt,
-    },
-    {
-      id: 'seed-assistant',
-      role: 'assistant',
-      text: content.summary,
-    },
-  ])
+  >([])
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey)
+      if (raw) {
+        const parsed = JSON.parse(raw) as typeof messages
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed)
+          return
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    setMessages([
+      {
+        id: 'seed-user',
+        role: 'user',
+        text: content.prompt,
+      },
+      {
+        id: 'seed-assistant',
+        role: 'assistant',
+        text: content.summary,
+      },
+    ])
+  }, [storageKey, content.prompt, content.summary])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(messages))
+    } catch {
+      // Ignore storage errors
+    }
+  }, [messages, storageKey])
 
   const handleSend = async () => {
     const trimmed = input.trim()

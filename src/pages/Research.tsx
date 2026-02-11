@@ -1,25 +1,50 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronRight, ExternalLink, Share2, UserRound } from "lucide-react";
 
 export default function Research() {
   const [showSources, setShowSources] = useState(true);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const storageKey = "chat:research";
   const [messages, setMessages] = useState<
     Array<{ id: string; role: "user" | "assistant"; text: string }>
-  >([
-    {
-      id: "seed-user",
-      role: "user",
-      text: "build a comps tables table for FDS vs peers (i.e. comps for rogo)",
-    },
-    {
-      id: "seed-assistant",
-      role: "assistant",
-      text:
-        "I'm gathering key financial metrics and will assemble a comparative table with Market Cap, EV/Sales, and EV/EBITDA.",
-    },
-  ]);
+  >([]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as typeof messages;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          return;
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    setMessages([
+      {
+        id: "seed-user",
+        role: "user",
+        text: "build a comps tables table for FDS vs peers (i.e. comps for rogo)",
+      },
+      {
+        id: "seed-assistant",
+        role: "assistant",
+        text:
+          "I'm gathering key financial metrics and will assemble a comparative table with Market Cap, EV/Sales, and EV/EBITDA.",
+      },
+    ]);
+  }, [storageKey]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch {
+      // Ignore storage errors
+    }
+  }, [messages, storageKey]);
 
   const handleSend = async () => {
     const trimmed = input.trim();
