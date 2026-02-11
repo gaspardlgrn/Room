@@ -101,9 +101,7 @@ function LayoutContent() {
                 className={`flex items-center rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
                   isActive(item.href)
                     ? 'bg-gray-100 text-gray-900'
-                    : item.name === 'Home' || item.name === 'Tables'
-                    ? ''
-                    : 'hover:bg-gray-50'
+                    : 'bg-white'
                 } ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}
               >
                 <item.icon className="h-5 w-5 text-gray-700" />
