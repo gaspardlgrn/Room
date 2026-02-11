@@ -9,6 +9,11 @@ export default function Research() {
   const [showAllSources, setShowAllSources] = useState(false);
   const storageKey = "chat:research";
   const endRef = useRef<HTMLDivElement | null>(null);
+  const [thinkingSteps, setThinkingSteps] = useState<{
+    description: string;
+    currentStep: string;
+    items: string[];
+  } | null>(null);
   const [messages, setMessages] = useState<
     Array<{
       id: string;
@@ -65,6 +70,26 @@ export default function Research() {
     if (isSending) return;
     setIsSending(true);
     
+    // Générer une description dynamique basée sur le message
+    const generateDescription = (msg: string) => {
+      const lowerMsg = msg.toLowerCase();
+      if (lowerMsg.includes('tableau') || lowerMsg.includes('comps') || lowerMsg.includes('comparables')) {
+        return `Je rassemble les métriques financières clés et j'analyse les comparables pour créer un tableau comparatif détaillé.`;
+      } else if (lowerMsg.includes('analyse') || lowerMsg.includes('marché') || lowerMsg.includes('market')) {
+        return `J'analyse le marché, les tendances et la concurrence pour fournir une analyse complète.`;
+      } else if (lowerMsg.includes('société') || lowerMsg.includes('entreprise') || lowerMsg.includes('company')) {
+        return `J'analyse la société, sa position, ses produits et sa performance financière.`;
+      }
+      return `J'analyse votre demande et je prépare une réponse détaillée basée sur les informations disponibles.`;
+    };
+    
+    // Initialiser les étapes de réflexion
+    setThinkingSteps({
+      description: generateDescription(messageText),
+      currentStep: 'Analyse de la demande',
+      items: [],
+    });
+    
     // Créer le message assistant initial vide
     const assistantMessageId = `assistant-${Date.now()}`;
     setMessages((prev) => [
@@ -76,6 +101,36 @@ export default function Research() {
         sources: [],
       },
     ]);
+    
+    // Extraire les entités mentionnées (sociétés, etc.)
+    const extractEntities = (msg: string) => {
+      const entities: string[] = [];
+      // Chercher des acronymes en majuscules (ex: FDS, S&P, etc.)
+      const acronyms = msg.match(/\b[A-Z]{2,5}\b/g);
+      if (acronyms) {
+        entities.push(...acronyms.slice(0, 5));
+      }
+      return entities;
+    };
+    
+    const entities = extractEntities(messageText);
+    
+    // Simuler les étapes de réflexion
+    setTimeout(() => {
+      setThinkingSteps((prev) => prev ? {
+        ...prev,
+        currentStep: 'Recherche d\'informations',
+        items: entities.length > 0 ? entities : [],
+      } : null);
+    }, 800);
+    
+    setTimeout(() => {
+      setThinkingSteps((prev) => prev ? {
+        ...prev,
+        currentStep: 'Analyse et synthèse',
+        items: entities.length > 0 ? entities : [],
+      } : null);
+    }, 2000);
 
     try {
       const response = await fetch("/api/chat", {
@@ -150,7 +205,11 @@ export default function Research() {
       if (!fullText.trim()) {
         throw new Error("Réponse IA vide.");
       }
+      
+      // Réinitialiser les étapes de réflexion une fois terminé
+      setThinkingSteps(null);
     } catch (error) {
+      setThinkingSteps(null);
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === assistantMessageId
@@ -204,11 +263,30 @@ export default function Research() {
             
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
-                {showTyping ? (
-                  <div className="space-y-1 text-sm font-normal text-gray-600">
-                    <div>Analyse de votre demande...</div>
-                    <div>Recherche d'informations...</div>
-                    <div>Rédaction de la réponse...</div>
+                {showTyping && thinkingSteps ? (
+                  <div className="space-y-4">
+                    <div className="text-base font-semibold text-gray-900">Working...</div>
+                    <div className="flex items-start gap-2 text-sm font-normal text-gray-700">
+                      <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border border-emerald-400 bg-emerald-50">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                      </div>
+                      <div className="flex-1">{thinkingSteps.description}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs font-normal text-gray-500">{thinkingSteps.currentStep}</div>
+                      {thinkingSteps.items.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {thinkingSteps.items.map((item, idx) => (
+                            <span
+                              key={idx}
+                              className="rounded-md bg-gray-100 px-2 py-1 text-xs font-normal text-gray-700"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : message.text ? (
                   <article className="ai-answer text-gray-800">
