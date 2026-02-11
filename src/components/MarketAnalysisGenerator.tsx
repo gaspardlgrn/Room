@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { FileText, Presentation } from "lucide-react";
 import { DocumentCategory, DocumentType, InvestmentData } from "@/types";
 import { createRecentDocument, useRecentDocuments } from "@/state/recentDocuments";
 
@@ -141,11 +140,22 @@ export default function MarketAnalysisGenerator() {
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { value: "docx", label: "Word", hint: ".docx", icon: FileText },
-            { value: "pptx", label: "PowerPoint", hint: ".pptx", icon: Presentation },
+            {
+              value: "docx",
+              label: "Word",
+              hint: ".docx",
+              logoUrl:
+                "https://upload.wikimedia.org/wikipedia/commons/e/e8/Microsoft_Office_Word_%282025%E2%80%93present%29.svg",
+            },
+            {
+              value: "pptx",
+              label: "PowerPoint",
+              hint: ".pptx",
+              logoUrl:
+                "https://upload.wikimedia.org/wikipedia/commons/2/25/Microsoft_Office_PowerPoint_%282019%E2%80%932025%29.svg",
+            },
           ].map((option) => {
             const active = documentType === option.value;
-            const Icon = option.icon;
             return (
               <button
                 key={option.value}
@@ -160,7 +170,12 @@ export default function MarketAnalysisGenerator() {
               >
                 <div>
                   <div className="flex items-center gap-2 text-sm font-semibold">
-                    <Icon className="h-4 w-4 text-gray-600" />
+                    <img
+                      src={option.logoUrl}
+                      alt={`Logo ${option.label}`}
+                      className="h-5 w-5"
+                      loading="lazy"
+                    />
                     {option.label}
                   </div>
                   <div className="text-xs text-gray-500">{option.hint}</div>
