@@ -338,30 +338,128 @@ async function exaSearch(query: string): Promise<ExaResult[]> {
   }
 }
 
+/** Comptes connectés Composio (id + slug du toolkit) pour le user_id configuré. */
+async function getComposioConnectedAccounts(): Promise<
+  { id: string; toolkitSlug: string }[]
+> {
+  if (!COMPOSIO_API_KEY) return [];
+  const connected = await composioRequest(
+    `/api/v3/connected_accounts?user_id=${encodeURIComponent(COMPOSIO_USER_ID)}`
+  );
+  if (!connected.ok) return [];
+  const items = connected.data?.items ?? [];
+  return items
+    .map((item: any) => {
+      const id = item?.id ?? item?.connected_account_id;
+      const slug =
+        item?.toolkit?.slug ?? item?.toolkit_slug ?? item?.toolkit ?? item?.slug;
+      return id && slug ? { id, toolkitSlug: String(slug).toLowerCase() } : null;
+    })
+    .filter(Boolean) as { id: string; toolkitSlug: string }[];
+}
+
+/** Exécute un outil Composio et retourne le résultat (data) ou undefined en cas d'erreur. */
+async function composioExecuteTool(
+  toolSlug: string,
+  body: {
+    user_id?: string;
+    connected_account_id?: string;
+    arguments?: Record<string, unknown>;
+    text?: string;
+  }
+): Promise<unknown> {
+  const res = await composioRequest(`/api/v3/tools/execute/${toolSlug}`, {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: body.user_id ?? COMPOSIO_USER_ID,
+      ...(body.connected_account_id && {
+        connected_account_id: body.connected_account_id,
+      }),
+      ...(body.arguments && { arguments: body.arguments }),
+      ...(body.text && { text: body.text }),
+    }),
+  });
+  if (!res.ok) return undefined;
+  return res.data?.data ?? res.data;
+}
+
+/** Récupère un résumé des emails et documents via les comptes Composio connectés (Gmail, Outlook, Drive). */
+async function getComposioDataForContext(): Promise<string> {
+  const accounts = await getComposioConnectedAccounts();
+  if (accounts.length === 0) return "";
+
+  const parts: string[] = [];
+  const maxSnippetLen = 400;
+
+  for (const { id, toolkitSlug } of accounts) {
+    try {
+      if (toolkitSlug === "gmail") {
+        const out = await composioExecuteTool("GMAIL_FETCH_EMAILS", {
+          connected_account_id: id,
+          arguments: { max_results: 8 },
+        }) as any;
+        const emails = out?.emails ?? out?.messages ?? out?.data ?? [];
+        const list = Array.isArray(emails) ? emails : [];
+        if (list.length > 0) {
+          const lines = list.slice(0, 8).map((e: any, i: number) => {
+            const subj = e.subject ?? e.snippet ?? "(sans objet)";
+            const snip = (e.snippet ?? e.body ?? "").slice(0, maxSnippetLen);
+            return `${i + 1}. ${String(subj).slice(0, 120)}${snip ? ` — ${snip}` : ""}`;
+          });
+          parts.push("Emails Gmail (récents):\n" + lines.join("\n"));
+        }
+      } else if (toolkitSlug === "outlook" || toolkitSlug === "microsoft_outlook") {
+        const out = await composioExecuteTool("OUTLOOK_OUTLOOK_LIST_MESSAGES", {
+          connected_account_id: id,
+          arguments: { top: 8 },
+        }) as any;
+        const messages = out?.value ?? out?.messages ?? out?.data ?? [];
+        const list = Array.isArray(messages) ? messages : [];
+        if (list.length > 0) {
+          const lines = list.slice(0, 8).map((m: any, i: number) => {
+            const subj = m.subject ?? m.bodyPreview ?? "(sans objet)";
+            const snip = (m.bodyPreview ?? m.body ?? "").slice(0, maxSnippetLen);
+            return `${i + 1}. ${String(subj).slice(0, 120)}${snip ? ` — ${snip}` : ""}`;
+          });
+          parts.push("Messages Outlook (récents):\n" + lines.join("\n"));
+        }
+      } else if (
+        toolkitSlug === "googledrive" ||
+        toolkitSlug === "google_drive"
+      ) {
+        const out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+          connected_account_id: id,
+          arguments: { page_size: 10 },
+        }) as any;
+        const files = out?.files ?? out?.items ?? out?.data ?? [];
+        const list = Array.isArray(files) ? files : [];
+        if (list.length > 0) {
+          const lines = list.slice(0, 10).map((f: any, i: number) => {
+            const name = f.name ?? f.title ?? "(sans nom)";
+            return `${i + 1}. ${String(name).slice(0, 100)}`;
+          });
+          parts.push("Fichiers Google Drive (récents):\n" + lines.join("\n"));
+        }
+      }
+    } catch (err) {
+      console.error("Composio data fetch error for", toolkitSlug, err);
+    }
+  }
+
+  if (parts.length === 0) return "";
+  return (
+    "Données utilisateur (emails et documents via Composio) — utilise ces infos si pertinent pour répondre:\n\n" +
+    parts.join("\n\n")
+  );
+}
+
 async function getComposioContext(): Promise<string> {
-  if (!COMPOSIO_API_KEY) {
-    return "";
+  const accounts = await getComposioConnectedAccounts();
+  if (accounts.length === 0) {
+    return COMPOSIO_API_KEY ? "Aucun toolkit Composio connecté." : "";
   }
-  try {
-    const connected = await composioRequest(
-      `/api/v3/connected_accounts?user_id=${encodeURIComponent(COMPOSIO_USER_ID)}`
-    );
-    if (!connected.ok) {
-      return "";
-    }
-    const items = connected.data?.items ?? [];
-    const slugs = items
-      .map((item: any) => item?.toolkit?.slug || item?.toolkit_slug || item?.slug)
-      .filter(Boolean);
-    const unique = Array.from(new Set(slugs));
-    if (unique.length === 0) {
-      return "Aucun toolkit Composio connecté.";
-    }
-    return `Toolkits Composio connectés: ${unique.join(", ")}.`;
-  } catch (error) {
-    console.error("Erreur Composio:", error);
-    return "";
-  }
+  const slugs = Array.from(new Set(accounts.map((a) => a.toolkitSlug)));
+  return `Toolkits Composio connectés: ${slugs.join(", ")}.`;
 }
 
 type IntentPlan = {
@@ -585,7 +683,10 @@ app.post("/api/chat", async (req, res) => {
 
     const intent = await classifyIntent(message.trim());
     const exaResults = await exaSearch(message.trim());
-    const composioContext = await getComposioContext();
+    const [composioContext, composioData] = await Promise.all([
+      getComposioContext(),
+      getComposioDataForContext(),
+    ]);
     const exaContext = exaResults
       .map((result, index) => {
         const title = result.title || "Source";
@@ -628,6 +729,14 @@ app.post("/api/chat", async (req, res) => {
               {
                 role: "system" as const,
                 content: `Contexte Composio (outil disponible): ${composioContext}`,
+              },
+            ]
+          : []),
+        ...(composioData
+          ? [
+              {
+                role: "system" as const,
+                content: composioData,
               },
             ]
           : []),
