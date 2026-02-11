@@ -584,7 +584,7 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const intent = await classifyIntent(message.trim());
-    const exaResults = intent.needsWeb ? await exaSearch(message.trim()) : [];
+    const exaResults = await exaSearch(message.trim());
     const composioContext = await getComposioContext();
     const exaContext = exaResults
       .map((result, index) => {
