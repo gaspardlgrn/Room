@@ -59,18 +59,66 @@ export default function HistoryChat() {
     [id]
   )
   const [showSources, setShowSources] = useState(true)
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState<
+    Array<{ id: string; role: 'user' | 'assistant'; text: string }>
+  >([
+    {
+      id: 'seed-user',
+      role: 'user',
+      text: content.prompt,
+    },
+    {
+      id: 'seed-assistant',
+      role: 'assistant',
+      text: content.summary,
+    },
+  ])
+
+  const handleSend = () => {
+    const trimmed = input.trim()
+    if (!trimmed) {
+      return
+    }
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user' as const,
+      text: trimmed,
+    }
+    const aiMessage = {
+      id: `assistant-${Date.now() + 1}`,
+      role: 'assistant' as const,
+      text:
+        "Bien reçu. Je synthétise l'information et je reviens avec une réponse structurée.",
+    }
+    setMessages((prev) => [...prev, userMessage, aiMessage])
+    setInput('')
+  }
 
   return (
     <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex flex-col items-center">
-        <div className="w-full max-w-3xl">
-          <div className="flex justify-end">
-            <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
-              {content.prompt}
+        <div className="w-full max-w-3xl space-y-6">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${
+                message.role === 'user' ? 'justify-end' : 'justify-start'
+              }`}
+            >
+              <div
+                className={`max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                  message.role === 'user'
+                    ? 'bg-white text-gray-700'
+                    : 'bg-gray-50 text-gray-700'
+                }`}
+              >
+                {message.text}
+              </div>
             </div>
-          </div>
+          ))}
 
-          <div className="mt-10">
+          <div>
             <div className="text-xs text-gray-500">Working...</div>
             <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="flex items-start gap-3">
@@ -161,10 +209,21 @@ export default function HistoryChat() {
       <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-80">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                handleSend()
+              }
+            }}
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
             placeholder="Ask a follow up..."
           />
-          <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-sm hover:bg-emerald-800">
+          <button
+            onClick={handleSend}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-sm hover:bg-emerald-800"
+            aria-label="Envoyer"
+          >
             <ExternalLink className="h-4 w-4" />
           </button>
         </div>
