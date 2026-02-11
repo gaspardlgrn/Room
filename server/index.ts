@@ -542,7 +542,7 @@ async function getComposioDataForContext(): Promise<string> {
 
   if (parts.length === 0) return "";
   return (
-    "Données utilisateur (emails et documents via Composio) — utilise ces infos si pertinent pour répondre:\n\n" +
+    "IMPORTANT: Les données suivantes ont été récupérées depuis les comptes Connectés de l'utilisateur (Gmail, Google Drive, Outlook, OneDrive). Elles sont DÉJÀ INCLUSES dans ce message. Tu as accès à ces données et tu DOIS les utiliser pour répondre. Ne dis JAMAIS que tu n'as pas accès au Drive, aux emails ou aux documents — ils sont ci-dessous.\n\n" +
     parts.join("\n\n")
   );
 }
@@ -781,6 +781,9 @@ app.post("/api/chat", async (req, res) => {
       getComposioContext(),
       getComposioDataForContext(),
     ]);
+    if (composioContext && !composioData) {
+      console.warn("[Composio] Comptes connectés mais aucune donnée récupérée — vérifier COMPOSIO_USER_ID et les connexions.");
+    }
     const exaContext = exaResults
       .map((result, index) => {
         const title = result.title || "Source";
@@ -822,7 +825,7 @@ app.post("/api/chat", async (req, res) => {
           ? [
               {
                 role: "system" as const,
-                content: `Contexte Composio (outil disponible): ${composioContext}`,
+                content: `Comptes Composio connectés: ${composioContext}. Les données utilisateur (emails, documents) sont injectées dans le message suivant si récupérées.`,
               },
             ]
           : []),
