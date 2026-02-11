@@ -413,7 +413,7 @@ app.post("/api/chat", async (req, res) => {
         {
           role: "system",
           content:
-            "Tu es un assistant IA concis et utile. Reponds en francais, ton professionnel.",
+            "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais avec un ton professionnel, structure et clair. Organise tes reponses avec des sections et des listes quand c'est utile (Contexte, Analyse, Hypotheses, Risques, Recommandations). Si des donnees externes sont necessaires (web, emails, documents), indique ce qu'il faut verifier et quelles sources tu utiliserais. Ne fabrique pas de donnees.",
         },
         {
           role: "user",

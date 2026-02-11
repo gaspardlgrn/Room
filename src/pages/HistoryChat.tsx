@@ -95,24 +95,24 @@ export default function HistoryChat() {
     <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="flex flex-col items-center">
         <div className="w-full max-w-3xl space-y-6">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
-              <div
-                className={`max-w-2xl rounded-2xl px-4 py-3 text-sm shadow-sm ${
-                  message.role === 'user'
-                    ? 'bg-white text-gray-700'
-                    : 'bg-gray-50 text-gray-700'
-                }`}
-              >
-                {message.text}
+          {messages.map((message) => {
+            if (message.role === 'user') {
+              return (
+                <div key={message.id} className="flex justify-end">
+                  <div className="max-w-2xl rounded-2xl bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+                    {message.text}
+                  </div>
+                </div>
+              )
+            }
+            return (
+              <div key={message.id} className="prose prose-sm max-w-none text-gray-800">
+                <div className="rounded-2xl bg-white px-5 py-4 shadow-sm">
+                  <div className="whitespace-pre-wrap">{message.text}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
