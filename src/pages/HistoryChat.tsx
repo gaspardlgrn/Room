@@ -60,6 +60,18 @@ export default function HistoryChat() {
     if (cleaned.startsWith('```')) {
       cleaned = cleaned.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
     }
+    const normalize = (value: string) => {
+      let normalized = value.trim()
+      const start = normalized.indexOf('{')
+      const end = normalized.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        normalized = normalized.slice(start, end + 1)
+      }
+      for (let i = 0; i < 3; i += 1) {
+        normalized = normalized.replace(/^\{\s*\{/, '{')
+      }
+      return normalized
+    }
     const tryParse = (value: string) => {
       try {
         return JSON.parse(value) as {
@@ -81,18 +93,10 @@ export default function HistoryChat() {
         return null
       }
     }
-    let parsed =
-      tryParse(cleaned) ||
-      (cleaned.startsWith('{{') ? tryParse(cleaned.slice(1)) : null)
-    if (!parsed) {
-      const start = cleaned.indexOf('{')
-      const end = cleaned.lastIndexOf('}')
-      if (start >= 0 && end > start) {
-        const sliced = cleaned.slice(start, end + 1)
-        parsed =
-          tryParse(sliced) ||
-          (sliced.startsWith('{{') ? tryParse(sliced.slice(1)) : null)
-      }
+    const normalized = normalize(cleaned)
+    let parsed = tryParse(normalized)
+    if (!parsed && normalized.startsWith('{{')) {
+      parsed = tryParse(normalized.slice(1))
     }
     if (!parsed) return null
     const hasContent =
@@ -102,6 +106,18 @@ export default function HistoryChat() {
       (parsed.tables?.length ?? 0) > 0 ||
       !!parsed.conclusion
     return hasContent ? parsed : null
+  }
+
+  const getDisplayText = (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed.startsWith('{')) return text
+    const values = Array.from(trimmed.matchAll(/:\s*"([^"]+)"/g)).map(
+      (match) => match[1]
+    )
+    if (values.length > 0) {
+      return values.join('\n\n')
+    }
+    return trimmed.replace(/[{}\[\],"]/g, ' ').replace(/\s+/g, ' ').trim()
   }
 
   useEffect(() => {
@@ -229,7 +245,7 @@ export default function HistoryChat() {
                   {structured ? (
                     <StructuredAnswer answer={structured} />
                   ) : (
-                    <MarkdownAnswer content={message.text} />
+                    <MarkdownAnswer content={getDisplayText(message.text)} />
                   )}
                 </article>
               </div>
