@@ -56,33 +56,52 @@ export default function HistoryChat() {
 
   const parseStructured = (text?: string) => {
     if (!text) return null
-    if (!text.trim().startsWith('{')) return null
-    try {
-      const parsed = JSON.parse(text) as {
-        title?: string
-        summary?: string
-        sections?: Array<{
-          heading?: string
-          paragraphs?: string[]
-          bullets?: string[]
-        }>
-        tables?: Array<{
-          title?: string
-          columns?: string[]
-          rows?: string[][]
-        }>
-        conclusion?: string
-      }
-      const hasContent =
-        !!parsed.title ||
-        !!parsed.summary ||
-        (parsed.sections?.length ?? 0) > 0 ||
-        (parsed.tables?.length ?? 0) > 0 ||
-        !!parsed.conclusion
-      return hasContent ? parsed : null
-    } catch {
-      return null
+    let cleaned = text.trim()
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
     }
+    const tryParse = (value: string) => {
+      try {
+        return JSON.parse(value) as {
+          title?: string
+          summary?: string
+          sections?: Array<{
+            heading?: string
+            paragraphs?: string[]
+            bullets?: string[]
+          }>
+          tables?: Array<{
+            title?: string
+            columns?: string[]
+            rows?: string[][]
+          }>
+          conclusion?: string
+        }
+      } catch {
+        return null
+      }
+    }
+    let parsed =
+      tryParse(cleaned) ||
+      (cleaned.startsWith('{{') ? tryParse(cleaned.slice(1)) : null)
+    if (!parsed) {
+      const start = cleaned.indexOf('{')
+      const end = cleaned.lastIndexOf('}')
+      if (start >= 0 && end > start) {
+        const sliced = cleaned.slice(start, end + 1)
+        parsed =
+          tryParse(sliced) ||
+          (sliced.startsWith('{{') ? tryParse(sliced.slice(1)) : null)
+      }
+    }
+    if (!parsed) return null
+    const hasContent =
+      !!parsed.title ||
+      !!parsed.summary ||
+      (parsed.sections?.length ?? 0) > 0 ||
+      (parsed.tables?.length ?? 0) > 0 ||
+      !!parsed.conclusion
+    return hasContent ? parsed : null
   }
 
   useEffect(() => {
