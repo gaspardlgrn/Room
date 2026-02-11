@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ChevronRight,
@@ -58,6 +58,7 @@ export default function HistoryChat() {
     () => HISTORY_CONTENT.find((item) => item.id === id) || HISTORY_CONTENT[0],
     [id]
   )
+  const [showSources, setShowSources] = useState(true)
 
   return (
     <div className="relative flex min-h-[80vh] gap-6 px-6 pb-24 pt-4">
@@ -92,8 +93,9 @@ export default function HistoryChat() {
         </div>
       </div>
 
-      <aside className="hidden w-80 shrink-0 lg:block">
-        <div className="flex items-center justify-between">
+      {showSources ? (
+        <aside className="hidden w-80 shrink-0 border-l border-gray-200 pl-4 lg:block">
+          <div className="flex items-center justify-between">
           <div className="text-xs text-gray-500">Sources</div>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             2
@@ -102,6 +104,14 @@ export default function HistoryChat() {
             </button>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={() => setShowSources(false)}
+          className="absolute right-6 top-6 hidden h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500 lg:flex"
+          aria-label="Fermer la colonne sources"
+        >
+          ×
+        </button>
         <div className="mt-3 space-y-3">
           {[
             {
@@ -144,9 +154,10 @@ export default function HistoryChat() {
           ))}
         </div>
       </aside>
+      ) : null}
 
-      <div className="fixed bottom-6 left-0 right-0 z-10 px-6">
-        <div className="mx-auto flex max-w-4xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+      <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-80">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
             placeholder="Ask a follow up..."
