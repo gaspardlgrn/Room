@@ -7,15 +7,9 @@ export default function Login() {
   const unauthorized = params.get("unauthorized") === "1";
 
   return (
-    <div className="min-h-screen bg-white relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute -bottom-20 right-0 h-80 w-80 rounded-full bg-indigo-500/10 blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.06),_transparent_55%)]" />
-      </div>
-
-      <div className="relative mx-auto flex min-h-screen max-w-5xl items-center px-6 py-12">
-        <div className="grid w-full grid-cols-1 gap-8 rounded-3xl border border-gray-200 bg-white/80 p-8 shadow-2xl backdrop-blur md:grid-cols-[1.1fr_0.9fr]">
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto flex min-h-screen max-w-5xl items-center px-6 py-12">
+        <div className="grid w-full grid-cols-1 gap-8 rounded-3xl border border-gray-200 bg-white p-8 shadow-2xl md:grid-cols-[1.1fr_0.9fr]">
           <div className="flex flex-col justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gray-600">

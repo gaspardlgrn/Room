@@ -84,7 +84,7 @@ function LayoutContent() {
   const isActive = (path: string) => location.pathname === path
 
   return (
-    <div className="min-h-screen bg-[#f8f8f6]">
+    <div className="min-h-screen bg-white">
       <div className="flex">
         <aside
           className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 ${
@@ -176,7 +176,7 @@ function LayoutContent() {
         </aside>
 
         <div className="flex-1 lg:ml-64">
-          <div className="sticky top-0 z-40 border-b border-gray-200 bg-[#f8f8f6]/95 backdrop-blur">
+          <div className="sticky top-0 z-40 border-b border-gray-200 bg-white">
             <div className="flex items-center gap-4 px-6 py-4">
               <button
                 type="button"

@@ -117,8 +117,8 @@ export default function HistoryChat() {
   }
 
   return (
-    <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <div className="flex flex-col items-center">
+    <div className="relative min-h-[80vh] px-6 pb-24 pt-4">
+      <div className="flex flex-col items-center lg:pr-[360px]">
         <div className="w-full max-w-3xl space-y-6">
           {messages.map((message) => {
             if (message.role === 'user') {
@@ -142,7 +142,7 @@ export default function HistoryChat() {
       </div>
 
       {showSources ? (
-        <aside className="relative hidden border-l-2 border-gray-200 bg-white/80 pl-5 pr-4 shadow-[inset_1px_0_0_rgba(0,0,0,0.04)] lg:flex lg:flex-col lg:self-stretch">
+        <aside className="fixed right-0 top-0 z-30 hidden h-screen w-[320px] border-l-2 border-gray-200 bg-white px-4 pt-20 lg:flex lg:flex-col">
           <div className="flex items-center justify-between pt-1">
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
               Sources
@@ -161,7 +161,7 @@ export default function HistoryChat() {
           <button
             type="button"
             onClick={() => setShowSources(false)}
-            className="absolute right-4 top-0 hidden h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500 lg:flex"
+            className="absolute right-4 top-4 hidden h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500 lg:flex"
             aria-label="Fermer la colonne sources"
           >
             ×
@@ -202,7 +202,7 @@ export default function HistoryChat() {
         </aside>
       ) : null}
 
-      <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-80">
+      <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-[360px]">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
             value={input}
