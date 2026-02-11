@@ -364,6 +364,110 @@ async function getComposioContext(): Promise<string> {
   }
 }
 
+type IntentPlan = {
+  taskType:
+    | "market_analysis"
+    | "company_analysis"
+    | "ic_memo"
+    | "info_memo"
+    | "exit_analysis"
+    | "valuation_comps"
+    | "general";
+  focus?: string;
+  needsWeb?: boolean;
+};
+
+const DEFAULT_INTENT: IntentPlan = { taskType: "general", needsWeb: true };
+
+async function classifyIntent(message: string): Promise<IntentPlan> {
+  if (!openai) return DEFAULT_INTENT;
+  try {
+    const intent = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es un routeur d'intent. Retourne uniquement un JSON avec: taskType (market_analysis, company_analysis, ic_memo, info_memo, exit_analysis, valuation_comps, general), focus, needsWeb (true/false).",
+        },
+        { role: "user", content: message },
+      ],
+      temperature: 0.1,
+      max_tokens: 120,
+    });
+    const raw = intent.choices[0]?.message?.content?.trim();
+    if (!raw) return DEFAULT_INTENT;
+    const parsed = JSON.parse(raw) as IntentPlan;
+    return {
+      taskType: parsed.taskType || "general",
+      focus: parsed.focus,
+      needsWeb: parsed.needsWeb ?? true,
+    };
+  } catch (error) {
+    console.error("Erreur routing intent:", error);
+    return DEFAULT_INTENT;
+  }
+}
+
+function buildSystemPrompt(intent: IntentPlan): string {
+  const common =
+    "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais, structure et clair. Format attendu: Markdown uniquement (pas de JSON). Utilise des titres (##), paragraphes courts, listes a puces, et des tableaux Markdown quand utile. N'invente pas de donnees: si une information manque, indique-le explicitement.";
+  const sources =
+    "Termine par '## Sources' et cite les sources avec [^1].";
+  switch (intent.taskType) {
+    case "market_analysis":
+      return (
+        common +
+        " Produis: Contexte, Taille de marche (TAM/SAM/SOM si possible), Tendances, Concurrence, Modeles economiques, Hypotheses, Risques, Recommandations. Inclure des tableaux si pertinent." +
+        " " +
+        sources
+      );
+    case "company_analysis":
+      return (
+        common +
+        " Produis: Description, Positionnement, Produits, Clients, KPIs, Finances, Concurrents, Moat, Risques, Catalyseurs, Recommandations. Inclure des tableaux si pertinent." +
+        " " +
+        sources
+      );
+    case "ic_memo":
+      return (
+        common +
+        " Produis un IC memo: Executive Summary, Thesis, Marche, Produit, Traction/KPIs, Business Model, Unit Economics, Concurrence, Equipe, Risques, Deal Terms, Recommandation. Inclure tableaux si pertinent." +
+        " " +
+        sources
+      );
+    case "info_memo":
+      return (
+        common +
+        " Produis un info memo: Resume, Contexte, Societe, Marche, Produit, Clients, Traction, Finances, Projections, Risques, Calendrier. Inclure tableaux si pertinent." +
+        " " +
+        sources
+      );
+    case "exit_analysis":
+      return (
+        common +
+        " Produis: Options de sortie, Acquereurs strategiques, Comparables, Timing, Multiples, Scenarios. Inclure tableaux si pertinent." +
+        " " +
+        sources
+      );
+    case "valuation_comps":
+      return (
+        common +
+        " Produis: Methodologie comps, Liste de comparables, Tableau de multiples (EV/Revenue, EV/EBITDA, P/E si possible), Analyse. Inclure un tableau 'Comps Table' si pertinent." +
+        " " +
+        sources
+      );
+    default:
+      return (
+        common +
+        " Adapte la structure a la demande et propose des sections claires." +
+        " " +
+        sources
+      );
+  }
+}
+
 async function getMicrosoftAccessToken() {
   if (!msalClient || !microsoftAccount) {
     return null;
@@ -479,7 +583,8 @@ app.post("/api/chat", async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
     }
 
-    const exaResults = await exaSearch(message.trim());
+    const intent = await classifyIntent(message.trim());
+    const exaResults = intent.needsWeb ? await exaSearch(message.trim()) : [];
     const composioContext = await getComposioContext();
     const exaContext = exaResults
       .map((result, index) => {
@@ -500,8 +605,7 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         {
           role: "system",
-          content:
-            "Tu es un analyste financier senior specialise en investissement et private equity. Reponds en francais, structure et clair. Format attendu: Markdown uniquement (pas de JSON). Utilise des titres (##), paragraphes courts, listes a puces, et des tableaux Markdown quand utile. Si pertinent, inclus une section 'Financing History' sous forme de tableau avec colonnes: Round, Date, Amount (USD), Post-Money Valuation (USD), Lead Investors. N'invente pas de donnees: si une information manque, indique-le explicitement. Termine par '## Sources' et cite les sources avec [^1].",
+          content: buildSystemPrompt(intent),
         },
         ...(exaContext
           ? [
@@ -517,7 +621,7 @@ app.post("/api/chat", async (req, res) => {
           ? [
               {
                 role: "system" as const,
-                content: `Contexte Composio: ${composioContext}`,
+                content: `Contexte Composio (outil disponible): ${composioContext}`,
               },
             ]
           : []),
@@ -527,7 +631,7 @@ app.post("/api/chat", async (req, res) => {
         },
       ],
       temperature: 0.3,
-      max_tokens: 500,
+      max_tokens: 900,
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
