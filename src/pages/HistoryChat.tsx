@@ -31,18 +31,7 @@ export default function HistoryChat() {
     } catch {
       // Ignore storage errors
     }
-    setMessages([
-      {
-        id: 'seed-user',
-        role: 'user',
-        text: content.prompt,
-      },
-      {
-        id: 'seed-assistant',
-        role: 'assistant',
-        text: content.summary,
-      },
-    ])
+    setMessages([])
   }, [storageKey])
 
   useEffect(() => {
