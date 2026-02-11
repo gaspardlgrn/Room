@@ -21,7 +21,6 @@ export default function HistoryChat() {
     items: string[]
   } | null>(null)
   const thinkingIntervalRef = useRef<number | null>(null)
-  const thinkingIntervalRef = useRef<number | null>(null)
   const [messages, setMessages] = useState<
     Array<{
       id: string
