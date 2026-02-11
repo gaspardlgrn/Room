@@ -14,6 +14,7 @@ export default function HistoryChat() {
   const [isSending, setIsSending] = useState(false)
   const [showAllSources, setShowAllSources] = useState(false)
   const endRef = useRef<HTMLDivElement | null>(null)
+  const hasAutoSentRef = useRef(false)
   const [messages, setMessages] = useState<
     Array<{
       id: string
@@ -39,12 +40,20 @@ export default function HistoryChat() {
   }
 
   useEffect(() => {
+    // Réinitialiser le flag quand on change de conversation
+    hasAutoSentRef.current = false
+    
     try {
       const raw = window.localStorage.getItem(storageKey)
       if (raw) {
         const parsed = JSON.parse(raw) as typeof messages
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMessages(parsed)
+          // Si c'est une nouvelle conversation avec seulement un message utilisateur, envoyer automatiquement
+          if (parsed.length === 1 && parsed[0].role === 'user' && !hasAutoSentRef.current) {
+            hasAutoSentRef.current = true
+            handleAutoSend(parsed[0].text)
+          }
           return
         }
       }
@@ -53,6 +62,60 @@ export default function HistoryChat() {
     }
     setMessages([])
   }, [storageKey])
+
+  const handleAutoSend = async (messageText: string) => {
+    if (isSending) return
+    setIsSending(true)
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: messageText }),
+      })
+      if (!response.ok) {
+        const text = await response.text()
+        throw new Error(text || `Erreur chat (HTTP ${response.status})`)
+      }
+      const data = (await response.json()) as {
+        reply?: string
+        sources?: Array<{
+          title?: string
+          url?: string
+          publishedDate?: string
+          author?: string
+          excerpt?: string
+        }>
+      }
+      const reply = data.reply?.trim() || ''
+      if (!reply) {
+        throw new Error('Réponse IA vide.')
+      }
+      const sources = Array.isArray(data.sources) ? data.sources : []
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text: reply,
+          sources,
+        },
+      ])
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text:
+            error instanceof Error
+              ? `Erreur: ${error.message}`
+              : 'Erreur lors de la requête.',
+        },
+      ])
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })

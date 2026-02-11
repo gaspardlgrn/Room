@@ -46,7 +46,7 @@ function LayoutContent() {
   ]
   const [historyItems, setHistoryItems] = useState(defaultHistoryItems)
 
-  useEffect(() => {
+  const loadHistoryItems = () => {
     try {
       const raw = window.localStorage.getItem('history:items')
       if (raw) {
@@ -58,7 +58,16 @@ function LayoutContent() {
     } catch {
       // ignore storage errors
     }
+  }
+
+  useEffect(() => {
+    loadHistoryItems()
   }, [])
+
+  // Recharger les history items quand on navigue (pour détecter les nouvelles conversations)
+  useEffect(() => {
+    loadHistoryItems()
+  }, [location.pathname])
 
   useEffect(() => {
     try {
