@@ -61,40 +61,42 @@ export default function HistoryChat() {
   const [showSources, setShowSources] = useState(true)
 
   return (
-    <div className="relative flex min-h-[80vh] gap-0 px-6 pb-24 pt-4">
-      <div className="flex-1">
-        <div className="flex justify-end">
-          <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
-            {content.prompt}
-          </div>
-        </div>
-
-        <div className="mt-10">
-          <div className="text-xs text-gray-500">Working...</div>
-          <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-start gap-3">
-              <div className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 text-[10px] text-gray-500">
-                ✓
-              </div>
-              <div className="text-sm text-gray-700">{content.summary}</div>
+    <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="flex flex-col items-center">
+        <div className="w-full max-w-3xl">
+          <div className="flex justify-end">
+            <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
+              {content.prompt}
             </div>
-            <div className="mt-4 text-xs text-gray-500">Identifying companies</div>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-              {content.companies.map((company) => (
-                <span
-                  key={company}
-                  className="rounded-full border border-gray-200 bg-gray-50 px-2 py-1"
-                >
-                  {company}
-                </span>
-              ))}
+          </div>
+
+          <div className="mt-10">
+            <div className="text-xs text-gray-500">Working...</div>
+            <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 text-[10px] text-gray-500">
+                  ✓
+                </div>
+                <div className="text-sm text-gray-700">{content.summary}</div>
+              </div>
+              <div className="mt-4 text-xs text-gray-500">Identifying companies</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                {content.companies.map((company) => (
+                  <span
+                    key={company}
+                    className="rounded-full border border-gray-200 bg-gray-50 px-2 py-1"
+                  >
+                    {company}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {showSources ? (
-        <aside className="relative hidden w-80 shrink-0 border-l border-gray-200 pl-4 lg:flex lg:flex-col lg:self-stretch">
+        <aside className="relative hidden border-l border-gray-200 pl-4 lg:flex lg:flex-col lg:self-stretch">
           <div className="flex items-center justify-between pt-1">
             <div className="text-xs text-gray-500">Sources</div>
             <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -157,7 +159,7 @@ export default function HistoryChat() {
       ) : null}
 
       <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-80">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
             placeholder="Ask a follow up..."

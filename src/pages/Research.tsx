@@ -4,34 +4,36 @@ import { ChevronRight, ExternalLink, Share2, UserRound } from "lucide-react";
 export default function Research() {
   const [showSources, setShowSources] = useState(true);
   return (
-    <div className="relative flex min-h-[80vh] gap-0 px-6 pb-24 pt-4">
-      <div className="flex-1">
-        <div className="flex justify-end">
-          <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
-            build a comps tables table for FDS vs peers (i.e. comps for rogo)
-          </div>
-        </div>
-
-        <div className="mt-10">
-          <div className="text-xs text-gray-500">Working...</div>
-          <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="text-sm text-gray-700">
-              Market Cap - FactSet Research Systems Inc., Rogo Technologies, Inc.
-              + 3 more
+    <div className="relative grid min-h-[80vh] gap-0 px-6 pb-24 pt-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="flex flex-col items-center">
+        <div className="w-full max-w-3xl">
+          <div className="flex justify-end">
+            <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
+              build a comps tables table for FDS vs peers (i.e. comps for rogo)
             </div>
-            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
-              <div className="text-xs text-gray-500">Identifying companies</div>
-              <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
-                {["FDS", "Rogo", "Bloomberg", "S&P Global", "Refinitiv"].map(
-                  (company) => (
-                    <span
-                      key={company}
-                      className="rounded-full border border-gray-200 bg-white px-2 py-1"
-                    >
-                      {company}
-                    </span>
-                  )
-                )}
+          </div>
+
+          <div className="mt-10">
+            <div className="text-xs text-gray-500">Working...</div>
+            <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="text-sm text-gray-700">
+                Market Cap - FactSet Research Systems Inc., Rogo Technologies, Inc.
+                + 3 more
+              </div>
+              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <div className="text-xs text-gray-500">Identifying companies</div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                  {["FDS", "Rogo", "Bloomberg", "S&P Global", "Refinitiv"].map(
+                    (company) => (
+                      <span
+                        key={company}
+                        className="rounded-full border border-gray-200 bg-white px-2 py-1"
+                      >
+                        {company}
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -39,7 +41,7 @@ export default function Research() {
       </div>
 
       {showSources ? (
-        <aside className="relative hidden w-80 shrink-0 border-l border-gray-200 pl-4 lg:flex lg:flex-col lg:self-stretch">
+        <aside className="relative hidden border-l border-gray-200 pl-4 lg:flex lg:flex-col lg:self-stretch">
           <div className="flex items-center justify-between pt-1">
             <div className="text-xs text-gray-500">Sources</div>
             <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -102,7 +104,7 @@ export default function Research() {
       ) : null}
 
       <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-80">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
             className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
             placeholder="Ask a follow up..."
