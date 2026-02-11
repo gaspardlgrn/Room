@@ -100,12 +100,13 @@ export default function HistoryChat() {
         throw new Error(text || `Erreur chat (HTTP ${response.status})`)
       }
       const data = (await response.json()) as { reply?: string }
-      if (!data.reply) {
+      const reply = data.reply?.trim() || ''
+      if (!reply) {
         throw new Error('Réponse IA vide.')
       }
       setMessages((prev) => [
         ...prev,
-        { id: `assistant-${Date.now() + 1}`, role: 'assistant', text: data.reply },
+        { id: `assistant-${Date.now() + 1}`, role: 'assistant', text: reply },
       ])
     } catch (error) {
       setMessages((prev) => [
