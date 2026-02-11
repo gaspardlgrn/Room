@@ -18,38 +18,6 @@ import {
 import { SignOutButton, useUser } from '@clerk/clerk-react'
 import { RecentDocumentsProvider } from '@/state/recentDocuments'
 
-const pageMetaByPath: Record<
-  string,
-  { title: string; placeholder: string; actionLabel?: string }
-> = {
-  '/dashboard': {
-    title: 'Tables',
-    placeholder: 'What type of table would you like to create?',
-    actionLabel: 'New Table',
-  },
-  '/research': {
-    title: 'Research',
-    placeholder: 'Ask a follow up...',
-  },
-  '/tasks': {
-    title: 'Scheduled Tasks',
-    placeholder: 'Search tasks...',
-    actionLabel: 'New Task',
-  },
-  '/history': {
-    title: 'History',
-    placeholder: 'Search history...',
-  },
-  '/settings': {
-    title: 'Settings',
-    placeholder: 'Search settings...',
-  },
-  '/admin': {
-    title: 'Admin',
-    placeholder: 'Search users...',
-  },
-}
-
 function LayoutContent() {
   const location = useLocation()
   const { user } = useUser()
