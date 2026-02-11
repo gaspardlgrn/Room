@@ -240,7 +240,7 @@ export default function Research() {
     await sendMessageWithStreaming(trimmed);
   };
   return (
-    <div className="relative min-h-[80vh] px-6 pb-24 pt-4">
+    <div className="relative min-h-[80vh] px-3 pb-24 pt-4">
       <div className="flex flex-col items-center lg:pr-[360px]">
         <div className="w-full max-w-3xl">
           <div className="space-y-6 pb-16">
@@ -248,7 +248,7 @@ export default function Research() {
             if (message.role === "user") {
               return (
                 <div key={message.id} className="flex justify-end">
-                  <div className="max-w-2xl rounded-2xl bg-gray-100 px-4 py-3 text-xs text-gray-700 shadow-sm">
+                  <div className="max-w-3xl rounded-2xl bg-gray-100 px-4 py-3 text-xs text-gray-700 shadow-sm">
                     {message.text}
                   </div>
                 </div>
@@ -420,8 +420,8 @@ export default function Research() {
         </aside>
       ) : null}
 
-      <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-[var(--sidebar-width)] lg:right-[360px]">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+      <div className="fixed bottom-6 left-0 right-0 z-10 px-3 lg:left-[var(--sidebar-width)] lg:right-[360px]">
+        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
