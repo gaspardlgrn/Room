@@ -1,6 +1,11 @@
 import { useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { ChevronRight, ExternalLink } from 'lucide-react'
+import {
+  ChevronRight,
+  ExternalLink,
+  Share2,
+  UserRound,
+} from 'lucide-react'
 
 const HISTORY_CONTENT = [
   {
@@ -55,17 +60,17 @@ export default function HistoryChat() {
   )
 
   return (
-    <div className="relative flex min-h-[70vh] flex-col items-center justify-center px-4">
-      <div className="w-full max-w-3xl">
+    <div className="relative flex min-h-[80vh] gap-6 px-6 pb-24 pt-4">
+      <div className="flex-1">
         <div className="flex justify-end">
-          <div className="max-w-xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
+          <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
             {content.prompt}
           </div>
         </div>
 
-        <div className="mt-8">
+        <div className="mt-10">
           <div className="text-xs text-gray-500">Working...</div>
-          <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex items-start gap-3">
               <div className="mt-1 flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 text-[10px] text-gray-500">
                 ✓
@@ -84,17 +89,79 @@ export default function HistoryChat() {
               ))}
             </div>
           </div>
-
-          <div className="mt-6 flex items-center gap-2 text-xs text-gray-400">
-            <span>Sources</span>
-            <ChevronRight className="h-3 w-3" />
-            <ExternalLink className="h-3 w-3" />
-          </div>
         </div>
       </div>
 
-      <div className="mt-12 w-full max-w-3xl rounded-full border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm">
-        Ask a follow up...
+      <aside className="hidden w-80 shrink-0 lg:block">
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-500">Sources</div>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            2
+            <button className="rounded-full border border-gray-200 bg-white p-1">
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 space-y-3">
+          {[
+            {
+              name: 'FactSet Research Systems Inc.',
+              ticker: 'FDS',
+              site: 'factset.com',
+              metric: 'Market Cap',
+              value: '$13.7B',
+            },
+            {
+              name: 'S&P Global Inc.',
+              ticker: 'SPGI',
+              site: 'spglobal.com',
+              metric: 'Market Cap',
+              value: '$166.1B',
+            },
+          ].map((source) => (
+            <div
+              key={source.ticker}
+              className="rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 shadow-sm"
+            >
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-500">
+                  {source.ticker[0]}
+                </div>
+                <div className="font-semibold text-gray-800">
+                  {source.name}
+                </div>
+              </div>
+              <div className="mt-1 text-[11px] text-gray-400">{source.site}</div>
+              <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-2 py-2">
+                <div className="text-[11px] text-gray-500">
+                  {source.metric}
+                </div>
+                <div className="text-sm font-semibold text-gray-900">
+                  {source.value}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <div className="fixed bottom-6 left-0 right-0 z-10 px-6">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm">
+          Ask a follow up...
+          <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="fixed right-6 top-6 flex items-center gap-2">
+        <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 shadow-sm">
+          <Share2 className="h-3 w-3" />
+          Share
+        </button>
+        <button className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500">
+          <UserRound className="h-4 w-4" />
+        </button>
       </div>
     </div>
   )
