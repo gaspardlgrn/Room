@@ -13,13 +13,13 @@ export default function Dashboard() {
   return (
     <div className="relative flex min-h-[70vh] flex-col items-center justify-center px-4">
       <div className="max-w-2xl text-center">
-        <div className="text-lg font-semibold text-gray-900">
+        <div className="font-display text-[24px] leading-tight text-gray-900">
           What can Room help with today?
         </div>
       </div>
 
       <div className="mt-6 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-2 text-[11px] text-gray-400">
           <Sparkles className="h-3 w-3" />
           Ask Room anything...
         </div>
@@ -28,7 +28,7 @@ export default function Dashboard() {
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             placeholder="Ask Room anything..."
-            className="flex-1 bg-transparent text-sm text-gray-800 outline-none placeholder:text-gray-400"
+            className="flex-1 bg-transparent text-[14px] text-gray-800 outline-none placeholder:text-gray-400"
           />
           <button className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
             <Send className="h-4 w-4" />

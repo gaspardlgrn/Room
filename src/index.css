@@ -10,11 +10,15 @@
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
   margin: 0;
 }
 
 #root {
   min-height: 100vh;
   background: #ffffff;
+}
+
+.font-display {
+  font-family: "DM Serif Display", "Times New Roman", serif;
 }
