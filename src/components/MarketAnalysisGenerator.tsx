@@ -197,8 +197,17 @@ export default function MarketAnalysisGenerator() {
             {TOOL_OPTIONS.map((tool) => {
               const checked = researchTools.includes(tool.value);
               return (
-                <label
+                <button
                   key={tool.value}
+                  type="button"
+                  onClick={() => {
+                    setResearchTools((prev) =>
+                      prev.includes(tool.value)
+                        ? prev.filter((item) => item !== tool.value)
+                        : [...prev, tool.value]
+                    );
+                  }}
+                  aria-pressed={checked}
                   className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition ${
                     checked
                       ? "border-blue-200 bg-blue-50 text-blue-900"
@@ -214,7 +223,7 @@ export default function MarketAnalysisGenerator() {
                     {checked ? "✓" : tool.logoText}
                   </span>
                   <span>{tool.label}</span>
-                </label>
+                </button>
               );
             })}
           </div>
