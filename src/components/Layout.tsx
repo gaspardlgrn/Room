@@ -93,15 +93,13 @@ function LayoutContent() {
           <div className="px-4 pb-2">
             <button
               type="button"
-              className={`flex items-center justify-center rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 ${
-                sidebarCollapsed
-                  ? 'h-10 w-10 gap-0'
-                  : 'w-full gap-2 px-3 py-2'
+              className={`flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 ${
+                sidebarCollapsed ? 'gap-0' : 'gap-2'
               }`}
               title="New Chat"
             >
               <MessageSquarePlus
-                className={sidebarCollapsed ? 'h-6 w-6' : 'h-4 w-4'}
+                className={sidebarCollapsed ? 'h-5 w-5' : 'h-4 w-4'}
               />
               {!sidebarCollapsed ? 'New Chat' : null}
             </button>
