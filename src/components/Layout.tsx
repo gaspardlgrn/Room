@@ -67,7 +67,12 @@ function LayoutContent() {
     }
   }, [historyItems])
 
-  const isActive = (path: string) => location.pathname === path
+  const isActiveItem = (item: { name: string; href: string }) => {
+    if (location.pathname === '/dashboard') {
+      return item.name === 'Home'
+    }
+    return location.pathname === item.href
+  }
   const sidebarWidth = useMemo(
     () => (sidebarCollapsed ? '4rem' : '16rem'),
     [sidebarCollapsed]
@@ -99,9 +104,9 @@ function LayoutContent() {
                 to={item.href}
                 title={item.name}
                 className={`flex items-center rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
-                  isActive(item.href)
+                  isActiveItem(item)
                     ? 'bg-gray-100 text-gray-900'
-                    : 'bg-transparent hover:bg-transparent'
+                    : 'bg-white hover:bg-white'
                 } ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}
               >
                 <item.icon className="h-5 w-5 text-gray-700" />
