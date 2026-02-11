@@ -8,7 +8,7 @@ import {
   Home,
   LayoutGrid,
   LogOut,
-  MessageSquarePlus,
+  Plus,
   Search,
   Settings,
   Shield,
@@ -98,7 +98,7 @@ function LayoutContent() {
               }`}
               title="New Chat"
             >
-              <MessageSquarePlus
+              <Plus
                 className="h-5 w-5 text-gray-700"
               />
               {!sidebarCollapsed ? 'New Chat' : null}
