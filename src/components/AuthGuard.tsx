@@ -1,25 +1,14 @@
-import { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import { useClerk, useOrganizationList, useUser } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
+
+const allowedEmails = (import.meta.env.VITE_ALLOWED_EMAILS || "")
+  .split(/[,;\s]+/)
+  .map((email: string) => email.toLowerCase())
+  .filter(Boolean);
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isLoaded: isUserLoaded, isSignedIn } = useUser();
-  const { userMemberships, isLoaded: isOrgListLoaded } = useOrganizationList({
-    userMemberships: { infinite: true },
-  });
-  const { signOut } = useClerk();
+  const { isLoaded, isSignedIn, user } = useUser();
   const location = useLocation();
-
-  const isLoaded = isUserLoaded && isOrgListLoaded;
-  const isMemberOfOrg =
-    (userMemberships?.data?.length ?? 0) > 0;
-
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-    if (!isMemberOfOrg) {
-      signOut?.();
-    }
-  }, [isLoaded, isSignedIn, isMemberOfOrg, signOut]);
 
   if (!isLoaded) {
     return (
@@ -33,7 +22,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
-  if (!isMemberOfOrg) {
+  const email = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? "";
+  if (allowedEmails.length > 0 && !allowedEmails.includes(email)) {
     return <Navigate to="/login?unauthorized=1" replace />;
   }
 

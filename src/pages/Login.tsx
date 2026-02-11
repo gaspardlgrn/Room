@@ -46,7 +46,7 @@ export default function Login() {
           <div className="flex flex-col justify-center">
             {unauthorized && (
               <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                Accès refusé : vous devez être membre d'une organisation pour accéder à Room.
+                Accès refusé : cet email n'est pas autorisé.
               </div>
             )}
 
