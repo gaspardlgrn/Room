@@ -108,18 +108,6 @@ export default function HistoryChat() {
     return hasContent ? parsed : null
   }
 
-  const getDisplayText = (text: string) => {
-    const trimmed = text.trim()
-    if (!trimmed.startsWith('{')) return text
-    const values = Array.from(trimmed.matchAll(/:\s*"([^"]+)"/g)).map(
-      (match) => match[1]
-    )
-    if (values.length > 0) {
-      return values.join('\n\n')
-    }
-    return trimmed.replace(/[{}\[\],"]/g, ' ').replace(/\s+/g, ' ').trim()
-  }
-
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey)
@@ -245,7 +233,7 @@ export default function HistoryChat() {
                   {structured ? (
                     <StructuredAnswer answer={structured} />
                   ) : (
-                    <MarkdownAnswer content={getDisplayText(message.text)} />
+                    <MarkdownAnswer content={message.text} />
                   )}
                 </article>
               </div>

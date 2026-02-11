@@ -644,7 +644,10 @@ app.post("/api/chat", async (req, res) => {
     } catch (error) {
       structured = parseTextToStructured(raw);
     }
-    const reply = structuredToMarkdown(structured);
+    let reply = structuredToMarkdown(structured);
+    if (!reply) {
+      reply = raw;
+    }
     const sources = exaResults.map((result) => ({
       title: result.title,
       url: result.url,
