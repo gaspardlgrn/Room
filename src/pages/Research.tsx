@@ -196,8 +196,8 @@ export default function Research() {
         </aside>
       ) : null}
 
-      <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-64 lg:right-[360px]">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+      <div className="fixed bottom-6 left-0 right-0 z-10 px-6 lg:left-[var(--sidebar-width)] lg:right-[360px]">
+        <div className="mx-auto flex w-full max-w-2xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
