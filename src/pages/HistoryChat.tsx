@@ -1,9 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ExternalLink,
-  Share2,
-  UserRound,
 } from 'lucide-react'
 import MarkdownAnswer from '../components/MarkdownAnswer'
 
@@ -14,6 +12,8 @@ export default function HistoryChat() {
   const [showSources, setShowSources] = useState(true)
   const [input, setInput] = useState('')
   const [isSending, setIsSending] = useState(false)
+  const [showAllSources, setShowAllSources] = useState(false)
+  const endRef = useRef<HTMLDivElement | null>(null)
   const [messages, setMessages] = useState<
     Array<{
       id: string
@@ -53,6 +53,10 @@ export default function HistoryChat() {
     }
     setMessages([])
   }, [storageKey])
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+  }, [messages])
 
   useEffect(() => {
     try {
@@ -134,7 +138,7 @@ export default function HistoryChat() {
             if (message.role === 'user') {
               return (
                 <div key={message.id} className="flex justify-end">
-                  <div className="max-w-2xl rounded-2xl bg-white px-4 py-3 text-xs text-gray-700 shadow-sm">
+                  <div className="max-w-2xl rounded-2xl bg-gray-100 px-4 py-3 text-xs text-gray-700 shadow-sm">
                     {message.text}
                   </div>
                 </div>
@@ -148,6 +152,7 @@ export default function HistoryChat() {
               </div>
             )
           })}
+          <div ref={endRef} />
         </div>
       </div>
 
@@ -182,12 +187,15 @@ export default function HistoryChat() {
             ×
           </button>
           <div className="mt-4 space-y-4 overflow-y-auto pr-1">
-            {(messages
-              .slice()
-              .reverse()
-              .find((item) => item.role === 'assistant' && item.sources?.length)
-              ?.sources || []
-            ).map((source, index) => (
+            {(() => {
+              const list =
+                messages
+                  .slice()
+                  .reverse()
+                  .find((item) => item.role === 'assistant' && item.sources?.length)
+                  ?.sources || []
+              const visible = showAllSources ? list : list.slice(0, 4)
+              return visible.map((source, index) => (
               <div
                 key={`${source.url || source.title || index}`}
                 className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-xs text-gray-600 shadow-sm"
@@ -245,7 +253,26 @@ export default function HistoryChat() {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            })()}
+            {(() => {
+              const total =
+                messages
+                  .slice()
+                  .reverse()
+                  .find((item) => item.role === 'assistant' && item.sources?.length)
+                  ?.sources?.length || 0
+              if (total <= 4) return null
+              return (
+                <button
+                  type="button"
+                  onClick={() => setShowAllSources((prev) => !prev)}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  {showAllSources ? 'Voir moins' : 'Voir plus'}
+                </button>
+              )
+            })()}
           </div>
         </aside>
       ) : null}
@@ -274,15 +301,7 @@ export default function HistoryChat() {
         </div>
       </div>
 
-      <div className="fixed right-6 top-6 flex items-center gap-2">
-        <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 shadow-sm">
-          <Share2 className="h-3 w-3" />
-          Share
-        </button>
-        <button className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500">
-          <UserRound className="h-4 w-4" />
-        </button>
-      </div>
+      {/* Bandeau haut supprimé */}
     </div>
   )
 }
