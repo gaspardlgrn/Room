@@ -1,85 +1,112 @@
+import { ChevronRight, ExternalLink, Share2, UserRound } from "lucide-react";
+
 export default function Research() {
-  const sources = [
-    {
-      id: 1,
-      name: "FactSet Research Systems Inc.",
-      ticker: "FDS",
-      summary: "Financials, market cap, EV/EBITDA",
-    },
-    {
-      id: 2,
-      name: "S&P Global Inc.",
-      ticker: "SPGI",
-      summary: "Market data, EV/Sales, EV/EBITDA",
-    },
-  ];
-
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="text-xs text-gray-500">Working...</div>
-        <h1 className="mt-2 text-lg font-semibold text-gray-900">
-          Legal AI Fundraising: Harvey AI vs. The Field
-        </h1>
-        <p className="mt-3 text-sm text-gray-700">
-          Harvey AI has executed a remarkably aggressive fundraising strategy,
-          raising $806M since inception in 2022 and achieving a $5.0B implied
-          valuation. This trajectory significantly outpaces the venture path of
-          key startup competitors.
-        </p>
-
-        <h2 className="mt-6 text-sm font-semibold text-gray-900">
-          Harvey AI: Fundraising History
-        </h2>
-        <div className="mt-3 overflow-hidden rounded-lg border border-gray-200">
-          <div className="grid grid-cols-4 gap-2 bg-gray-50 px-4 py-2 text-xs text-gray-500">
-            <div>Round</div>
-            <div>Date</div>
-            <div>Amount (USD)</div>
-            <div>Lead Investors</div>
+    <div className="relative flex min-h-[80vh] gap-6 px-6 pb-24 pt-4">
+      <div className="flex-1">
+        <div className="flex justify-end">
+          <div className="max-w-2xl rounded-full bg-white px-4 py-2 text-sm text-gray-700 shadow-sm">
+            build a comps tables table for FDS vs peers (i.e. comps for rogo)
           </div>
-          {[
-            { round: "Series E", date: "2025-06-23", amount: "$300M", lead: "Kleiner Perkins, Coatue" },
-            { round: "Series D", date: "2025-02-12", amount: "$300M", lead: "Sequoia Capital" },
-            { round: "Series C", date: "2024-07-23", amount: "$100M", lead: "GV" },
-          ].map((row) => (
-            <div
-              key={row.round}
-              className="grid grid-cols-4 gap-2 px-4 py-2 text-sm text-gray-700"
-            >
-              <div>{row.round}</div>
-              <div>{row.date}</div>
-              <div>{row.amount}</div>
-              <div>{row.lead}</div>
+        </div>
+
+        <div className="mt-10">
+          <div className="text-xs text-gray-500">Working...</div>
+          <div className="mt-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="text-sm text-gray-700">
+              Market Cap - FactSet Research Systems Inc., Rogo Technologies, Inc.
+              + 3 more
             </div>
-          ))}
+            <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="text-xs text-gray-500">Identifying companies</div>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                {["FDS", "Rogo", "Bloomberg", "S&P Global", "Refinitiv"].map(
+                  (company) => (
+                    <span
+                      key={company}
+                      className="rounded-full border border-gray-200 bg-white px-2 py-1"
+                    >
+                      {company}
+                    </span>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div className="mt-6 flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-500">
-          Ask a follow up...
-        </div>
-      </section>
-
-      <aside className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <aside className="hidden w-80 shrink-0 lg:block">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-gray-900">Sources</div>
-          <div className="text-xs text-gray-400">{sources.length}</div>
+          <div className="text-xs text-gray-500">Sources</div>
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            2
+            <button className="rounded-full border border-gray-200 bg-white p-1">
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
         </div>
         <div className="mt-3 space-y-3">
-          {sources.map((source) => (
+          {[
+            {
+              name: "FactSet Research Systems Inc.",
+              ticker: "FDS",
+              site: "factset.com",
+              metric: "Market Cap",
+              value: "$13.7B",
+            },
+            {
+              name: "S&P Global Inc.",
+              ticker: "SPGI",
+              site: "spglobal.com",
+              metric: "Market Cap",
+              value: "$166.1B",
+            },
+          ].map((source) => (
             <div
-              key={source.id}
-              className="rounded-lg border border-gray-100 bg-gray-50/60 p-3 text-sm"
+              key={source.ticker}
+              className="rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600 shadow-sm"
             >
-              <div className="font-semibold text-gray-900">
-                {source.name}
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-500">
+                  {source.ticker[0]}
+                </div>
+                <div className="font-semibold text-gray-800">
+                  {source.name}
+                </div>
               </div>
-              <div className="text-xs text-gray-500">{source.ticker}</div>
-              <div className="mt-2 text-xs text-gray-600">{source.summary}</div>
+              <div className="mt-1 text-[11px] text-gray-400">{source.site}</div>
+              <div className="mt-3 rounded-lg border border-gray-100 bg-gray-50 px-2 py-2">
+                <div className="text-[11px] text-gray-500">
+                  {source.metric}
+                </div>
+                <div className="text-sm font-semibold text-gray-900">
+                  {source.value}
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </aside>
+
+      <div className="fixed bottom-6 left-0 right-0 z-10 px-6">
+        <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm">
+          Ask a follow up...
+          <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+            <ExternalLink className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="fixed right-6 top-6 flex items-center gap-2">
+        <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 shadow-sm">
+          <Share2 className="h-3 w-3" />
+          Share
+        </button>
+        <button className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500">
+          <UserRound className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
