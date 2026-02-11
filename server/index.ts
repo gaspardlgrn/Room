@@ -429,16 +429,110 @@ async function getComposioDataForContext(): Promise<string> {
       ) {
         const out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
           connected_account_id: id,
-          arguments: { page_size: 10 },
+          arguments: { page_size: 25 },
         }) as any;
         const files = out?.files ?? out?.items ?? out?.data ?? [];
         const list = Array.isArray(files) ? files : [];
-        if (list.length > 0) {
-          const lines = list.slice(0, 10).map((f: any, i: number) => {
-            const name = f.name ?? f.title ?? "(sans nom)";
-            return `${i + 1}. ${String(name).slice(0, 100)}`;
+        const driveParts: string[] = [];
+        const maxFilesToRead = 12;
+        const maxCharsPerFile = 6000;
+        const maxTotalDriveChars = 35000;
+
+        for (let i = 0; i < list.length && driveParts.length < maxFilesToRead; i++) {
+          const f = list[i];
+          const fileId = f?.id ?? f?.fileId;
+          const name = f?.name ?? f?.title ?? "(sans nom)";
+          if (!fileId) continue;
+          try {
+            const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
+              connected_account_id: id,
+              arguments: { file_id: fileId },
+            }) as any;
+            const text =
+              parseRes?.text ??
+              parseRes?.content ??
+              (typeof parseRes?.data === "string" ? parseRes.data : null) ??
+              parseRes?.exportedContent;
+            if (text && typeof text === "string" && text.length > 0) {
+              const excerpt = text.slice(0, maxCharsPerFile);
+              driveParts.push(`[Document: ${String(name).slice(0, 80)}]\n${excerpt}`);
+            }
+          } catch {
+            // Ignorer les fichiers non lisibles (binaires, permissions, etc.)
+          }
+        }
+
+        let totalLen = 0;
+        const included: string[] = [];
+        for (const block of driveParts) {
+          if (totalLen + block.length > maxTotalDriveChars) break;
+          included.push(block);
+          totalLen += block.length;
+        }
+        if (included.length > 0) {
+          parts.push("Documents Google Drive (contenu consultable):\n" + included.join("\n\n---\n\n"));
+        }
+        if (list.length > 0 && included.length === 0) {
+          const lines = list.slice(0, 10).map((f: any, idx: number) => {
+            const n = f?.name ?? f?.title ?? "(sans nom)";
+            return `${idx + 1}. ${String(n).slice(0, 100)}`;
           });
-          parts.push("Fichiers Google Drive (récents):\n" + lines.join("\n"));
+          parts.push("Fichiers Google Drive (récents, sans contenu extrait):\n" + lines.join("\n"));
+        }
+      } else if (
+        toolkitSlug === "onedrive" ||
+        toolkitSlug === "one_drive"
+      ) {
+        const out = await composioExecuteTool("ONE_DRIVE_ONEDRIVE_LIST_ITEMS", {
+          connected_account_id: id,
+          arguments: { top: 25 },
+        }) as any;
+        const items = out?.value ?? out?.items ?? out?.data ?? [];
+        const list = Array.isArray(items) ? items : [];
+        const driveParts: string[] = [];
+        const maxFilesToRead = 12;
+        const maxCharsPerFile = 6000;
+        const maxTotalDriveChars = 35000;
+
+        for (let i = 0; i < list.length && driveParts.length < maxFilesToRead; i++) {
+          const f = list[i];
+          const itemId = f?.id ?? f?.itemId;
+          const name = f?.name ?? f?.title ?? "(sans nom)";
+          if (!itemId) continue;
+          try {
+            const dlRes = await composioExecuteTool("ONE_DRIVE_DOWNLOAD_FILE", {
+              connected_account_id: id,
+              arguments: { item_id: itemId } as any,
+            }) as any;
+            const text =
+              dlRes?.text ??
+              dlRes?.content ??
+              (typeof dlRes?.data === "string" ? dlRes.data : null);
+            if (text && typeof text === "string" && text.length > 0) {
+              const excerpt = text.slice(0, maxCharsPerFile);
+              driveParts.push(`[Document: ${String(name).slice(0, 80)}]\n${excerpt}`);
+            }
+          } catch {
+            // Fichier binaire ou non lisible
+          }
+        }
+
+        let totalLen = 0;
+        const included: string[] = [];
+        for (const block of driveParts) {
+          if (totalLen + block.length > maxTotalDriveChars) break;
+          included.push(block);
+          totalLen += block.length;
+        }
+        if (included.length > 0) {
+          parts.push("Documents OneDrive (contenu consultable):\n" + included.join("\n\n---\n\n"));
+        }
+        if (list.length > 0 && included.length === 0) {
+          const lines = list.slice(0, 10).map((f: any, idx: number) => {
+            const n = f?.name ?? f?.title ?? "(sans nom)";
+            return `${idx + 1}. ${String(n).slice(0, 100)}`;
+          });
+          parts.push("Fichiers OneDrive (récents, sans contenu extrait):\n" + lines.join("\n"));
         }
       }
     } catch (err) {
