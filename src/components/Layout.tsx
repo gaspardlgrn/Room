@@ -2,12 +2,17 @@ import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   CalendarClock,
+  FileText,
   HelpCircle,
+  History,
+  Home,
   LayoutGrid,
   LogOut,
+  MessageSquarePlus,
   Search,
   Settings,
   Shield,
+  Sparkles,
 } from 'lucide-react'
 import { SignOutButton, useUser } from '@clerk/clerk-react'
 import { RecentDocumentsProvider } from '@/state/recentDocuments'
@@ -48,10 +53,12 @@ function LayoutContent() {
   const isAdminUser = userEmail === 'gaspard@getroom.io'
 
   const navigation = [
+    { name: 'Home', href: '/dashboard', icon: Home },
+    { name: 'Incognito File Chat', href: '/research', icon: FileText },
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
-    { name: 'Research', href: '/research', icon: Search },
-    { name: 'Tasks', href: '/tasks', icon: CalendarClock },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
+    { name: 'Shortcuts', href: '/settings', icon: Sparkles },
+    { name: 'History', href: '/dashboard', icon: History },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ]
 
@@ -68,52 +75,83 @@ function LayoutContent() {
     <div className="min-h-screen bg-[#f8f8f6]">
       <div className="flex">
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-16 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <div className="flex h-16 items-center justify-center border-b border-gray-200">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-xs font-semibold text-white">
-              R
-            </div>
+          <div className="flex h-14 items-center px-5 text-xl font-semibold text-gray-900">
+            rogo
           </div>
-          <nav className="flex h-full flex-col items-center gap-2 py-4">
+          <div className="px-4 pb-2">
+            <button
+              type="button"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+              New Chat
+            </button>
+          </div>
+          <nav className="px-3 py-2">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 to={item.href}
-                aria-label={item.name}
-                className={`flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition ${
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
                   isActive(item.href)
-                    ? 'bg-gray-900 text-white'
-                    : 'hover:bg-gray-100'
+                    ? 'bg-gray-100 text-gray-900'
+                    : 'hover:bg-gray-50'
                 }`}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className="h-4 w-4 text-gray-500" />
+                {item.name}
               </Link>
             ))}
-            <div className="mt-auto flex flex-col items-center gap-2 pb-6">
-              <button
-                type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
-                aria-label="Aide"
-              >
-                <HelpCircle className="h-4 w-4" />
+          </nav>
+          <div className="px-3 py-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+              History
+            </div>
+            <div className="mt-2 space-y-2 text-sm text-gray-600">
+              {[
+                'Create comps table for FDS',
+                "Google's AI initiatives and ad",
+                "Today's news summary",
+                "CFO MAP's salary and comp",
+                'Request to proofread attached',
+                'Create a proofreading prompt',
+              ].map((item) => (
+                <div key={item} className="truncate px-2">
+                  {item}
+                </div>
+              ))}
+              <button className="flex items-center gap-2 px-2 text-xs text-gray-500">
+                View all →
+              </button>
+            </div>
+          </div>
+          <div className="mt-auto px-3 py-4">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <HelpCircle className="h-4 w-4" />
+              Help & Support
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+                <Settings className="h-4 w-4" />
               </button>
               <SignOutButton redirectUrl="/login">
                 <button
                   type="button"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
                   aria-label="Déconnexion"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
               </SignOutButton>
             </div>
-          </nav>
+          </div>
         </aside>
 
-        <div className="flex-1 lg:ml-16">
+        <div className="flex-1 lg:ml-64">
           <div className="sticky top-0 z-40 border-b border-gray-200 bg-[#f8f8f6]/95 backdrop-blur">
             <div className="flex items-center gap-4 px-6 py-4">
               <button
