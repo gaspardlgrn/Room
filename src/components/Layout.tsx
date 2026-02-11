@@ -145,7 +145,7 @@ function LayoutContent() {
                     : 'hover:bg-gray-50'
                 } ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}
               >
-                <item.icon className="h-4 w-4 text-gray-500" />
+                <item.icon className="h-5 w-5 text-gray-700" />
                 {!sidebarCollapsed ? item.name : null}
               </Link>
             ))}
@@ -187,33 +187,38 @@ function LayoutContent() {
             </div>
           ) : null}
           <div className="mt-auto px-3 py-4">
-            <div
-              className={`flex items-center text-sm text-gray-500 ${
-                sidebarCollapsed ? 'justify-center' : 'gap-2'
-              }`}
-            >
-              <HelpCircle className="h-4 w-4" />
-              {!sidebarCollapsed ? 'Help & Support' : null}
-            </div>
-            <div
-              className={`mt-3 flex items-center ${
-                sidebarCollapsed ? 'justify-center' : 'gap-2'
-              }`}
-            >
+            <div className="flex flex-col gap-2">
               <button
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+                type="button"
+                className={`flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
+                  sidebarCollapsed ? 'justify-center' : 'gap-2'
+                }`}
+                title="Help & Support"
+              >
+                <HelpCircle className="h-5 w-5 text-gray-700" />
+                {!sidebarCollapsed ? 'Help & Support' : null}
+              </button>
+              <button
+                type="button"
+                className={`flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
+                  sidebarCollapsed ? 'justify-center' : 'gap-2'
+                }`}
                 title="Settings"
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="h-5 w-5 text-gray-700" />
+                {!sidebarCollapsed ? 'Settings' : null}
               </button>
               <SignOutButton redirectUrl="/login">
                 <button
                   type="button"
-                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+                  className={`flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
+                    sidebarCollapsed ? 'justify-center' : 'gap-2'
+                  }`}
                   aria-label="Déconnexion"
                   title="Logout"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-5 w-5 text-gray-700" />
+                  {!sidebarCollapsed ? 'Logout' : null}
                 </button>
               </SignOutButton>
             </div>
