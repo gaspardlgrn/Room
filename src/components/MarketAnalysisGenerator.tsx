@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { FileText, Presentation } from "lucide-react";
 import { DocumentCategory, DocumentType, InvestmentData } from "@/types";
 import { createRecentDocument, useRecentDocuments } from "@/state/recentDocuments";
 
@@ -135,15 +136,16 @@ export default function MarketAnalysisGenerator() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-800 mb-2">
+        <label className="block text-sm font-semibold text-gray-800 mb-2">
           Type de document
         </label>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            { value: "docx", label: "Word", hint: ".docx" },
-            { value: "pptx", label: "PowerPoint", hint: ".pptx" },
+            { value: "docx", label: "Word", hint: ".docx", icon: FileText },
+            { value: "pptx", label: "PowerPoint", hint: ".pptx", icon: Presentation },
           ].map((option) => {
             const active = documentType === option.value;
+            const Icon = option.icon;
             return (
               <button
                 key={option.value}
@@ -157,7 +159,10 @@ export default function MarketAnalysisGenerator() {
                 aria-pressed={active}
               >
                 <div>
-                  <div className="text-sm font-semibold">{option.label}</div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Icon className="h-4 w-4 text-gray-600" />
+                    {option.label}
+                  </div>
                   <div className="text-xs text-gray-500">{option.hint}</div>
                 </div>
                 <span
@@ -176,7 +181,7 @@ export default function MarketAnalysisGenerator() {
 
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1">
+          <label className="block text-sm font-semibold text-gray-800 mb-1">
             Nom de l'entreprise Cible *
           </label>
           <input
@@ -189,7 +194,7 @@ export default function MarketAnalysisGenerator() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1">
+          <label className="block text-sm font-semibold text-gray-800 mb-1">
             URL du site internet *
           </label>
           <input
@@ -202,7 +207,7 @@ export default function MarketAnalysisGenerator() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-800 mb-1">
+          <label className="block text-sm font-semibold text-gray-800 mb-1">
             Outils de recherche
           </label>
           <div className="grid gap-2 rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm sm:grid-cols-2">
