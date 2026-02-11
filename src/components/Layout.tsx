@@ -96,7 +96,7 @@ function LayoutContent() {
     >
       <div className="flex">
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-200 bg-white transition-transform lg:w-[var(--sidebar-width)] lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r border-gray-200 bg-white transition-transform lg:w-[var(--sidebar-width)] lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onMouseEnter={() => setSidebarCollapsed(false)}
