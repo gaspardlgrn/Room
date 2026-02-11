@@ -99,7 +99,7 @@ function LayoutContent() {
               title="New Chat"
             >
               <MessageSquarePlus
-                className={sidebarCollapsed ? 'h-6 w-6' : 'h-4 w-4'}
+                className={sidebarCollapsed ? 'h-7 w-7' : 'h-4 w-4'}
               />
               {!sidebarCollapsed ? 'New Chat' : null}
             </button>
