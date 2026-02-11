@@ -90,9 +90,12 @@ export default function Research() {
       </aside>
 
       <div className="fixed bottom-6 left-0 right-0 z-10 px-6">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm">
-          Ask a follow up...
-          <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">
+        <div className="mx-auto flex max-w-4xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+          <input
+            className="flex-1 bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+            placeholder="Ask a follow up..."
+          />
+          <button className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 text-white shadow-sm hover:bg-emerald-800">
             <ExternalLink className="h-4 w-4" />
           </button>
         </div>
