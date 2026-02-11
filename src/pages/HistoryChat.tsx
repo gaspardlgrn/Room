@@ -133,7 +133,7 @@ export default function HistoryChat() {
   return (
     <div className="relative min-h-[80vh] px-6 pb-24 pt-4">
       <div className="flex flex-col items-center lg:pr-[360px]">
-        <div className="w-full max-w-3xl space-y-6">
+        <div className="w-full max-w-3xl space-y-6 pb-24">
           {messages.map((message) => {
             if (message.role === 'user') {
               return (
@@ -152,7 +152,7 @@ export default function HistoryChat() {
               </div>
             )
           })}
-          <div ref={endRef} />
+          <div ref={endRef} className="scroll-mb-24" />
         </div>
       </div>
 
