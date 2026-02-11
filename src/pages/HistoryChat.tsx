@@ -106,10 +106,10 @@ export default function HistoryChat() {
               )
             }
             return (
-              <div key={message.id} className="prose prose-sm max-w-none text-gray-800">
-                <div className="rounded-2xl bg-white px-5 py-4 shadow-sm">
+              <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
+                <article className="prose prose-sm max-w-none text-gray-800">
                   <div className="whitespace-pre-wrap">{message.text}</div>
-                </div>
+                </article>
               </div>
             )
           })}
