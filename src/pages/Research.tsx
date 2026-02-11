@@ -14,6 +14,7 @@ export default function Research() {
     currentStep: string;
     items: string[];
   } | null>(null);
+  const thinkingIntervalRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<
     Array<{
       id: string;
@@ -83,14 +84,25 @@ export default function Research() {
       return `J'analyse votre demande et je prépare une réponse détaillée basée sur les informations disponibles.`;
     };
     
-    // Initialiser les étapes de réflexion
+    const steps = [
+      'Analyse de la demande',
+      "Recherche d'informations",
+      'Analyse et synthèse',
+      'Préparation de la réponse structurée',
+    ];
+
+    if (thinkingIntervalRef.current !== null) {
+      window.clearInterval(thinkingIntervalRef.current);
+      thinkingIntervalRef.current = null;
+    }
+    let stepIndex = 0;
+
     setThinkingSteps({
       description: generateDescription(messageText),
-      currentStep: 'Analyse de la demande',
+      currentStep: steps[stepIndex],
       items: [],
     });
-    
-    // Créer le message assistant initial vide
+
     const assistantMessageId = `assistant-${Date.now()}`;
     setMessages((prev) => [
       ...prev,
@@ -101,36 +113,21 @@ export default function Research() {
         sources: [],
       },
     ]);
-    
-    // Extraire les entités mentionnées (sociétés, etc.)
+
     const extractEntities = (msg: string) => {
       const entities: string[] = [];
-      // Chercher des acronymes en majuscules (ex: FDS, S&P, etc.)
       const acronyms = msg.match(/\b[A-Z]{2,5}\b/g);
-      if (acronyms) {
-        entities.push(...acronyms.slice(0, 5));
-      }
+      if (acronyms) entities.push(...acronyms.slice(0, 5));
       return entities;
     };
-    
     const entities = extractEntities(messageText);
-    
-    // Simuler les étapes de réflexion
-    setTimeout(() => {
-      setThinkingSteps((prev) => prev ? {
-        ...prev,
-        currentStep: 'Recherche d\'informations',
-        items: entities.length > 0 ? entities : [],
-      } : null);
-    }, 800);
-    
-    setTimeout(() => {
-      setThinkingSteps((prev) => prev ? {
-        ...prev,
-        currentStep: 'Analyse et synthèse',
-        items: entities.length > 0 ? entities : [],
-      } : null);
-    }, 2000);
+
+    thinkingIntervalRef.current = window.setInterval(() => {
+      stepIndex = Math.min(stepIndex + 1, steps.length - 1);
+      setThinkingSteps((prev) =>
+        prev ? { ...prev, currentStep: steps[stepIndex], items: entities } : null
+      );
+    }, 900);
 
     try {
       const response = await fetch("/api/chat", {
@@ -205,10 +202,17 @@ export default function Research() {
       if (!fullText.trim()) {
         throw new Error("Réponse IA vide.");
       }
-      
-      // Réinitialiser les étapes de réflexion une fois terminé
+
+      if (thinkingIntervalRef.current !== null) {
+        window.clearInterval(thinkingIntervalRef.current);
+        thinkingIntervalRef.current = null;
+      }
       setThinkingSteps(null);
     } catch (error) {
+      if (thinkingIntervalRef.current !== null) {
+        window.clearInterval(thinkingIntervalRef.current);
+        thinkingIntervalRef.current = null;
+      }
       setThinkingSteps(null);
       setMessages((prev) =>
         prev.map((msg) =>

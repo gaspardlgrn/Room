@@ -20,6 +20,8 @@ export default function HistoryChat() {
     currentStep: string
     items: string[]
   } | null>(null)
+  const thinkingIntervalRef = useRef<number | null>(null)
+  const thinkingIntervalRef = useRef<number | null>(null)
   const [messages, setMessages] = useState<
     Array<{
       id: string
@@ -71,7 +73,7 @@ export default function HistoryChat() {
   const sendMessageWithStreaming = async (messageText: string) => {
     if (isSending) return
     setIsSending(true)
-    
+
     // Générer une description dynamique basée sur le message
     const generateDescription = (msg: string) => {
       const lowerMsg = msg.toLowerCase()
@@ -84,14 +86,30 @@ export default function HistoryChat() {
       }
       return `J'analyse votre demande et je prépare une réponse détaillée basée sur les informations disponibles.`
     }
-    
+
+    // Liste des étapes qui vont être streamées dans le bloc Working
+    const steps = [
+      'Analyse de la demande',
+      "Recherche d'informations",
+      'Analyse et synthèse',
+      'Préparation de la réponse structurée',
+    ]
+
+    // Nettoyer un éventuel intervalle précédent
+    if (thinkingIntervalRef.current !== null) {
+      window.clearInterval(thinkingIntervalRef.current)
+      thinkingIntervalRef.current = null
+    }
+
+    let stepIndex = 0
+
     // Initialiser les étapes de réflexion
     setThinkingSteps({
       description: generateDescription(messageText),
-      currentStep: 'Analyse de la demande',
+      currentStep: steps[stepIndex],
       items: [],
     })
-    
+
     // Créer le message assistant initial vide
     const assistantMessageId = `assistant-${Date.now()}`
     setMessages((prev) => [
@@ -103,7 +121,7 @@ export default function HistoryChat() {
         sources: [],
       },
     ])
-    
+
     // Extraire les entités mentionnées (sociétés, etc.)
     const extractEntities = (msg: string) => {
       const entities: string[] = []
@@ -114,25 +132,22 @@ export default function HistoryChat() {
       }
       return entities
     }
-    
+
     const entities = extractEntities(messageText)
-    
-    // Simuler les étapes de réflexion
-    setTimeout(() => {
-      setThinkingSteps((prev) => prev ? {
-        ...prev,
-        currentStep: 'Recherche d\'informations',
-        items: entities.length > 0 ? entities : [],
-      } : null)
-    }, 800)
-    
-    setTimeout(() => {
-      setThinkingSteps((prev) => prev ? {
-        ...prev,
-        currentStep: 'Analyse et synthèse',
-        items: entities.length > 0 ? entities : [],
-      } : null)
-    }, 2000)
+
+    // Lancer un intervalle qui met à jour les étapes en continu pendant que le LLM travaille
+    thinkingIntervalRef.current = window.setInterval(() => {
+      stepIndex = Math.min(stepIndex + 1, steps.length - 1)
+      setThinkingSteps((prev) =>
+        prev
+          ? {
+              ...prev,
+              currentStep: steps[stepIndex],
+              items: entities,
+            }
+          : null
+      )
+    }, 900)
 
     try {
       const response = await fetch('/api/chat', {
@@ -207,10 +222,17 @@ export default function HistoryChat() {
       if (!fullText.trim()) {
         throw new Error('Réponse IA vide.')
       }
-      
-      // Réinitialiser les étapes de réflexion une fois terminé
+
+      if (thinkingIntervalRef.current !== null) {
+        window.clearInterval(thinkingIntervalRef.current)
+        thinkingIntervalRef.current = null
+      }
       setThinkingSteps(null)
     } catch (error) {
+      if (thinkingIntervalRef.current !== null) {
+        window.clearInterval(thinkingIntervalRef.current)
+        thinkingIntervalRef.current = null
+      }
       setThinkingSteps(null)
       setMessages((prev) =>
         prev.map((msg) =>
