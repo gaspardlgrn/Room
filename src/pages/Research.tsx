@@ -116,7 +116,7 @@ export default function Research() {
             if (message.role === "user") {
               return (
                 <div key={message.id} className="flex justify-end">
-                  <div className="max-w-2xl rounded-2xl bg-white px-4 py-3 text-sm text-gray-700 shadow-sm">
+                  <div className="max-w-2xl rounded-2xl bg-white px-4 py-3 text-xs text-gray-700 shadow-sm">
                     {message.text}
                   </div>
                 </div>

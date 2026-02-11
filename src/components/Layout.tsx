@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   CalendarClock,
+  ChevronLeft,
   FileText,
   HelpCircle,
   History,
@@ -53,6 +54,7 @@ function LayoutContent() {
   const location = useLocation()
   const { user } = useUser()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? ''
   const isAdminUser = userEmail === 'gaspard@getroom.io'
 
@@ -82,25 +84,53 @@ function LayoutContent() {
     }
 
   const isActive = (path: string) => location.pathname === path
+  const sidebarWidth = useMemo(
+    () => (sidebarCollapsed ? '4rem' : '16rem'),
+    [sidebarCollapsed]
+  )
 
   return (
-    <div className="min-h-screen bg-white">
+    <div
+      className="min-h-screen bg-white"
+      style={{ ['--sidebar-width' as string]: sidebarWidth }}
+    >
       <div className="flex">
         <aside
-          className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 ${
+          className={`fixed inset-y-0 left-0 z-50 w-64 border-r border-gray-200 bg-white transition-transform lg:w-[var(--sidebar-width)] lg:translate-x-0 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
+          onMouseEnter={() => setSidebarCollapsed(false)}
+          onMouseLeave={() => setSidebarCollapsed(true)}
         >
-          <div className="flex h-14 items-center px-5 text-xl font-semibold text-gray-900">
-            rogo
+          <div className="flex h-14 items-center justify-between px-4 text-xl font-semibold text-gray-900">
+            <span className={sidebarCollapsed ? 'text-lg' : ''}>
+              {sidebarCollapsed ? 'r' : 'rogo'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed((prev) => !prev)}
+              className="hidden h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 lg:flex"
+              aria-label={
+                sidebarCollapsed ? 'Déployer le menu' : 'Réduire le menu'
+              }
+            >
+              <ChevronLeft
+                className={`h-3 w-3 transition-transform ${
+                  sidebarCollapsed ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
           </div>
           <div className="px-4 pb-2">
             <button
               type="button"
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50"
+              className={`flex w-full items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 ${
+                sidebarCollapsed ? 'gap-0' : 'gap-2'
+              }`}
+              title="New Chat"
             >
               <MessageSquarePlus className="h-4 w-4" />
-              New Chat
+              {!sidebarCollapsed ? 'New Chat' : null}
             </button>
           </div>
           <nav className="px-3 py-2">
@@ -108,58 +138,72 @@ function LayoutContent() {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
+                title={item.name}
+                className={`flex items-center rounded-lg px-3 py-2 text-sm text-gray-700 transition ${
                   isActive(item.href)
                     ? 'bg-gray-100 text-gray-900'
                     : 'hover:bg-gray-50'
-                }`}
+                } ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}
               >
                 <item.icon className="h-4 w-4 text-gray-500" />
-                {item.name}
+                {!sidebarCollapsed ? item.name : null}
               </Link>
             ))}
           </nav>
-          <div className="px-3 py-2">
-            <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              History
-            </div>
-            <div className="mt-2">
-              <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-500">
-                <Search className="h-3 w-3 text-gray-400" />
-                <input
-                  className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-400"
-                  placeholder="Search"
-                />
+          {!sidebarCollapsed ? (
+            <div className="px-3 py-2">
+              <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                History
+              </div>
+              <div className="mt-2">
+                <div className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-500">
+                  <Search className="h-3 w-3 text-gray-400" />
+                  <input
+                    className="w-full bg-transparent text-xs text-gray-600 outline-none placeholder:text-gray-400"
+                    placeholder="Search"
+                  />
+                </div>
+              </div>
+              <div className="mt-3 space-y-2 text-sm text-gray-600">
+                {historyItems.map((item) => {
+                  const href = `/history/${item.id}`
+                  const active = location.pathname === href
+                  return (
+                    <Link
+                      key={item.id}
+                      to={href}
+                      className={`block truncate rounded-md px-2 py-1 ${
+                        active ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  )
+                })}
+                <button className="flex items-center gap-2 px-2 text-xs text-gray-500">
+                  View all →
+                </button>
               </div>
             </div>
-            <div className="mt-3 space-y-2 text-sm text-gray-600">
-              {historyItems.map((item) => {
-                const href = `/history/${item.id}`
-                const active = location.pathname === href
-                return (
-                  <Link
-                    key={item.id}
-                    to={href}
-                    className={`block truncate rounded-md px-2 py-1 ${
-                      active ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              })}
-              <button className="flex items-center gap-2 px-2 text-xs text-gray-500">
-                View all →
-              </button>
-            </div>
-          </div>
+          ) : null}
           <div className="mt-auto px-3 py-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div
+              className={`flex items-center text-sm text-gray-500 ${
+                sidebarCollapsed ? 'justify-center' : 'gap-2'
+              }`}
+            >
               <HelpCircle className="h-4 w-4" />
-              Help & Support
+              {!sidebarCollapsed ? 'Help & Support' : null}
             </div>
-            <div className="mt-3 flex items-center gap-2">
-              <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50">
+            <div
+              className={`mt-3 flex items-center ${
+                sidebarCollapsed ? 'justify-center' : 'gap-2'
+              }`}
+            >
+              <button
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
+                title="Settings"
+              >
                 <Settings className="h-4 w-4" />
               </button>
               <SignOutButton redirectUrl="/login">
@@ -167,6 +211,7 @@ function LayoutContent() {
                   type="button"
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50"
                   aria-label="Déconnexion"
+                  title="Logout"
                 >
                   <LogOut className="h-4 w-4" />
                 </button>
@@ -175,7 +220,10 @@ function LayoutContent() {
           </div>
         </aside>
 
-        <div className="flex-1 lg:ml-64">
+        <div
+          className="flex-1 lg:ml-[var(--sidebar-width)]"
+          onClick={() => setSidebarCollapsed(true)}
+        >
           <div className="sticky top-0 z-40 border-b border-gray-200 bg-white">
             <div className="flex items-center gap-4 px-6 py-4">
               <button

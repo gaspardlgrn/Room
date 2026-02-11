@@ -24,20 +24,20 @@ body {
 }
 
 .ai-answer {
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 0.85rem;
+  line-height: 1.6;
   color: #1f2937;
 }
 
 .ai-answer__h2 {
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   font-weight: 600;
   margin: 0 0 0.75rem;
   color: #111827;
 }
 
 .ai-answer__h3 {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
   margin: 1.25rem 0 0.5rem;
   color: #111827;
@@ -69,7 +69,7 @@ body {
 .ai-answer__table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 
 .ai-answer__th {
