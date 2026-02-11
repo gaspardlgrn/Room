@@ -205,13 +205,10 @@ export default function Research() {
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
                 {showTyping ? (
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <div className="flex gap-1">
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.15s]" />
-                      <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" />
-                    </div>
-                    <span className="text-xs italic">L'agent réfléchit...</span>
+                  <div className="space-y-1 text-sm font-normal text-gray-600">
+                    <div>Analyse de votre demande...</div>
+                    <div>Recherche d'informations...</div>
+                    <div>Rédaction de la réponse...</div>
                   </div>
                 ) : message.text ? (
                   <article className="ai-answer text-gray-800">
