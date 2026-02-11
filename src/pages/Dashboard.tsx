@@ -1,280 +1,174 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import CreateDocument from './CreateDocument'
-import ExpertCallAnalysis from './ExpertCallAnalysis'
-import MeetingNote from './MeetingNote'
-import MarketAnalysisGenerator from '@/components/MarketAnalysisGenerator'
+import { useState } from 'react'
 import {
   BarChart3,
-  Briefcase,
-  Calculator,
+  Building2,
   FileText,
-  Globe,
-  Headphones,
-  Mic,
-  Paperclip,
-  Video,
+  Plus,
+  TrendingUp,
+  Users,
 } from 'lucide-react'
 
-type DashboardDoc = {
-  id: number
-  title: string
-  description: string
-  icon: typeof BarChart3
-  tag: string
-  tagIcon: typeof BarChart3
-  href: string
-}
-
 export default function Dashboard() {
-  const documentTypes: DashboardDoc[] = [
+  const [tab, setTab] = useState<'recent' | 'templates'>('recent')
+
+  const templates = [
     {
       id: 1,
-      title: 'Analyse de marché',
-      description: 'Générez une analyse de marché buy-side.',
-      icon: BarChart3,
-      tag: 'Analyse de marché',
-      tagIcon: BarChart3,
-      href: '/create',
+      title: 'Create new blank table',
+      description: 'Start from scratch',
+      icon: Plus,
     },
     {
       id: 2,
-      title: 'Valorisation',
-      description: 'Valorisez par multiples comparables avec recherche web.',
-      icon: Calculator,
-      tag: 'EV/EBITDA',
-      tagIcon: Globe,
-      href: '/create',
+      title: 'Earnings Call Grid',
+      description: 'Guidance, headwinds, drivers',
+      icon: BarChart3,
     },
     {
       id: 3,
-      title: 'Analyse de call expert',
-      description: 'Générez une analyse structurée à partir d\'un call expert.',
-      icon: Headphones,
-      tag: 'Transcript Teams',
-      tagIcon: Mic,
-      href: '/expert-call',
+      title: 'Private Company Strip Profiles',
+      description: 'Company, logo, key competitors',
+      icon: Building2,
     },
     {
       id: 4,
-      title: 'Note d\'investissement',
-      description: 'Générez automatiquement une note d\'investissement structurée.',
-      icon: FileText,
-      tag: 'docx/ppt/xlsx',
-      tagIcon: Paperclip,
-      href: '/create',
+      title: 'LATAM Energy & Manufacturing',
+      description: 'Company, revenue, EBITDA',
+      icon: TrendingUp,
     },
     {
       id: 5,
-      title: 'Note de réunion',
-      description: 'Générez une note structurée à partir de vos transcripts Teams.',
-      icon: Video,
-      tag: 'Transcript Teams',
-      tagIcon: Mic,
-      href: '/meeting-note',
+      title: 'LSIT - New Adds',
+      description: 'Category, fund, EBITDA',
+      icon: Users,
     },
   ]
-  const [selectedDoc, setSelectedDoc] = useState<DashboardDoc | null>(null)
 
-  const activeDeals = [
+  const recentTables = [
     {
       id: 1,
-      name: 'Mistral',
-      icon: 'M',
-      color: 'bg-orange-500',
-      status: 'Actif',
-      date: '21 janvier 2026',
+      name: 'Earnings Call Grid',
+      status: 'Active',
+      rows: 48,
+      columns: 6,
+      updated: '12 Feb',
     },
     {
       id: 2,
-      name: 'Somfy',
-      icon: 'S',
-      color: 'bg-yellow-500',
-      status: 'Actif',
-      date: '19 janvier 2026',
+      name: 'Private Company Strip Profiles',
+      status: 'Draft',
+      rows: 16,
+      columns: 6,
+      updated: '10 Feb',
+    },
+    {
+      id: 3,
+      name: 'LATAM Energy & Manufacturing',
+      status: 'Active',
+      rows: 25,
+      columns: 8,
+      updated: '08 Feb',
     },
   ]
 
-  useEffect(() => {
-    if (!selectedDoc) {
-      document.body.style.overflow = ''
-      return
-    }
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = ''
-    }
-  }, [selectedDoc])
-
-  const isMarketAnalysis = selectedDoc?.title === 'Analyse de marché'
-
-  const renderModalContent = (doc: DashboardDoc) => {
-    switch (doc.href) {
-      case '/create':
-        if (doc.title === 'Analyse de marché') {
-          return <MarketAnalysisGenerator />
-        }
-        return <CreateDocument />
-      case '/expert-call':
-        return <ExpertCallAnalysis />
-      case '/meeting-note':
-        return <MeetingNote />
-      default:
-        return (
-          <div className="text-sm text-gray-600">
-            Contenu indisponible pour ce module.
-          </div>
-        )
-    }
-  }
-
   return (
-    <div className="space-y-10">
-      {/* Page Title */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-gray-950">Accueil</h1>
-          <p className="text-sm text-gray-600">
-            Centralisez vos analyses et documents d’investissement.
-          </p>
-        </div>
-        <Link
-          to="/create"
-          className="inline-flex items-center justify-center rounded-md bg-gray-950 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-gray-900"
-        >
-          Nouveau document
-        </Link>
-      </div>
-
-      {/* GÉNÉRER UN DOCUMENT Section */}
-      <div>
-        <h2 className="text-xs font-semibold text-gray-800 uppercase tracking-wider mb-4">
-          GÉNÉRER UN DOCUMENT
-        </h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {documentTypes.map((doc) => (
-            <button
-              key={doc.id}
-              type="button"
-              onClick={() => setSelectedDoc(doc)}
-              className="group rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md"
-            >
-              <div className="flex flex-col h-full">
-                <div className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gray-900 to-gray-700 shadow-sm">
-                  <doc.icon className="h-4 w-4 text-white" />
-                </div>
-                <h3 className="text-base font-semibold text-gray-950 mb-2">
-                  {doc.title}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4 flex-1">
-                  {doc.description}
-                </p>
-                <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700">
-                  <doc.tagIcon className="h-3 w-3 text-gray-600" />
-                  <span>{doc.tag}</span>
-                </div>
-              </div>
-            </button>
-          ))}
-          {/* Empty card slot */}
-          <div className="rounded-xl border border-transparent p-4 opacity-0 pointer-events-none"></div>
-        </div>
-      </div>
-
-      {/* DEALS ACTIFS Section */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xs font-semibold text-gray-800 uppercase tracking-wider flex items-center space-x-1">
-            <Briefcase className="h-3 w-3 text-black" />
-            <span>DEALS ACTIFS</span>
+    <div className="space-y-8">
+      <section>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">
+            Start with a template
           </h2>
-          <Link
-            to="/documents"
-            className="text-sm text-gray-700 hover:text-gray-950"
-          >
-            Voir tous →
-          </Link>
+          <button className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600">
+            All Templates
+          </button>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          {activeDeals.map((deal) => (
+        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {templates.map((template) => (
             <div
-              key={deal.id}
-              className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-gray-50"
+              key={template.id}
+              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md"
             >
-              <div className="flex items-center space-x-4">
-                <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${deal.color} text-sm font-semibold text-white`}
-                >
-                  {deal.icon}
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
+                  <template.icon className="h-5 w-5 text-gray-700" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold text-gray-950">
-                    {deal.name}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    Dernière mise à jour
-                  </span>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {template.title}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {template.description}
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  {deal.status}
-                </div>
-                <span className="text-sm text-gray-600">{deal.date}</span>
-              </div>
+              <div className="mt-4 h-16 rounded-lg border border-dashed border-gray-200 bg-gray-50/60" />
             </div>
           ))}
         </div>
-      </div>
-      {selectedDoc ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setSelectedDoc(null)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
+      </section>
+
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-4 border-b border-gray-100 pb-3">
+          <button
+            type="button"
+            onClick={() => setTab('recent')}
+            className={`text-sm font-semibold ${
+              tab === 'recent' ? 'text-gray-900' : 'text-gray-400'
+            }`}
           >
-            <div className="flex items-start justify-between">
-              <div>
-                {isMarketAnalysis ? (
-                  <h3 className="text-xl font-semibold text-gray-950">
-                    Générer une analyse de marché
-                  </h3>
-                ) : (
-                  <>
-                    <p className="text-xs uppercase tracking-wider text-gray-500">
-                      Module
-                    </p>
-                    <h3 className="mt-1 text-xl font-semibold text-gray-950">
-                      {selectedDoc.title}
-                    </h3>
-                  </>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedDoc(null)}
-                className="rounded-md p-2 text-gray-500 hover:bg-gray-100"
-                aria-label="Fermer"
-              >
-                ×
-              </button>
+            Recent Tables
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('templates')}
+            className={`text-sm font-semibold ${
+              tab === 'templates' ? 'text-gray-900' : 'text-gray-400'
+            }`}
+          >
+            Templates
+          </button>
+        </div>
+        {tab === 'recent' ? (
+          <div className="mt-4">
+            <div className="grid grid-cols-5 gap-2 text-xs text-gray-400">
+              <div>Table</div>
+              <div>Status</div>
+              <div>Rows</div>
+              <div>Columns</div>
+              <div>Updated</div>
             </div>
-            {!isMarketAnalysis ? (
-              <p className="mt-3 text-sm text-gray-600">
-                {selectedDoc.description}
-              </p>
-            ) : null}
-            <div className="mt-6 max-h-[70vh] overflow-y-auto pr-2">
-              {renderModalContent(selectedDoc)}
+            <div className="mt-3 divide-y divide-gray-100 text-sm">
+              {recentTables.map((table) => (
+                <div
+                  key={table.id}
+                  className="grid grid-cols-5 gap-2 py-3 text-gray-700"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gray-400" />
+                    {table.name}
+                  </div>
+                  <div>{table.status}</div>
+                  <div>{table.rows}</div>
+                  <div>{table.columns}</div>
+                  <div>{table.updated}</div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {templates.map((template) => (
+              <div
+                key={template.id}
+                className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/60 p-3 text-sm text-gray-700"
+              >
+                <template.icon className="h-4 w-4 text-gray-500" />
+                {template.title}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   )
 }

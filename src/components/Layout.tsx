@@ -1,470 +1,165 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react'
+import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
-  BarChart3,
-  Calculator,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
-  Clock,
-  FileText,
-  Headphones,
-  Home,
+  CalendarClock,
+  HelpCircle,
+  LayoutGrid,
   LogOut,
-  Menu,
-  MoreHorizontal,
+  Search,
   Settings,
   Shield,
-  Video,
 } from 'lucide-react'
-import { SignOutButton } from '@clerk/clerk-react'
-import { useUser } from '@clerk/clerk-react'
-import { RecentDocumentsProvider, useRecentDocuments } from '@/state/recentDocuments'
-import type { DocumentCategory } from '@/types'
+import { SignOutButton, useUser } from '@clerk/clerk-react'
+import { RecentDocumentsProvider } from '@/state/recentDocuments'
+
+const pageMetaByPath: Record<
+  string,
+  { title: string; placeholder: string; actionLabel?: string }
+> = {
+  '/dashboard': {
+    title: 'Tables',
+    placeholder: 'What type of table would you like to create?',
+    actionLabel: 'New Table',
+  },
+  '/research': {
+    title: 'Research',
+    placeholder: 'Ask a follow up...',
+  },
+  '/tasks': {
+    title: 'Scheduled Tasks',
+    placeholder: 'Search tasks...',
+    actionLabel: 'New Task',
+  },
+  '/settings': {
+    title: 'Settings',
+    placeholder: 'Search settings...',
+  },
+  '/admin': {
+    title: 'Admin',
+    placeholder: 'Search users...',
+  },
+}
 
 function LayoutContent() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const location = useLocation()
-  const { recentDocuments, renameRecentDocument, removeRecentDocument } =
-    useRecentDocuments()
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [projectAssignments, setProjectAssignments] = useState<
-    Record<string, string[]>
-  >(() => {
-    if (typeof window === 'undefined') {
-      return {}
-    }
-    try {
-      const stored = window.localStorage.getItem('room_project_assignments')
-      if (!stored) {
-        return {}
-      }
-      const parsed = JSON.parse(stored) as Record<string, string[]>
-      return parsed && typeof parsed === 'object' ? parsed : {}
-    } catch (error) {
-      console.error('Impossible de charger les projets', error)
-      return {}
-    }
-  })
-  const [dragOverProject, setDragOverProject] = useState<string | null>(null)
-  const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>(
-    {}
-  )
-  const [projectsOpen, setProjectsOpen] = useState(true)
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false)
-  const profileMenuRef = useRef<HTMLDivElement | null>(null)
-  const assignmentsStorageKey = 'room_project_assignments'
   const { user } = useUser()
-
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase() ?? ''
   const isAdminUser = userEmail === 'gaspard@getroom.io'
 
   const navigation = [
-    { name: 'Accueil', href: '/dashboard', icon: Home },
+    { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
+    { name: 'Research', href: '/research', icon: Search },
+    { name: 'Tasks', href: '/tasks', icon: CalendarClock },
+    { name: 'Settings', href: '/settings', icon: Settings },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ]
 
-  const projects = [
-    { name: 'Mistral', icon: 'M', color: 'bg-orange-500' },
-    { name: 'Somfy', icon: 'S', color: 'bg-yellow-500' },
-    { name: 'Arkea', icon: 'A', color: 'bg-red-500' },
-    { name: 'Webedia', icon: 'W', color: 'bg-blue-500' },
-  ]
+  const pageMeta =
+    pageMetaByPath[location.pathname] ||
+    pageMetaByPath[`/${location.pathname.split('/')[1]}`] || {
+      title: 'Room',
+      placeholder: 'Search...',
+    }
 
   const isActive = (path: string) => location.pathname === path
-  const recentById = new Map(recentDocuments.map((doc) => [doc.id, doc]))
-  const isProjectExpanded = (projectName: string) =>
-    expandedProjects[projectName] ?? false
-  const documentIconByCategory: Record<DocumentCategory, typeof Calculator> = {
-    valuation: Calculator,
-    'market-analysis': BarChart3,
-    'expert-call': Headphones,
-    'investment-note': FileText,
-    'meeting-note': Video,
-  }
-
-  const toggleProject = (projectName: string) => {
-    setExpandedProjects((prev) => ({
-      ...prev,
-      [projectName]: !isProjectExpanded(projectName),
-    }))
-  }
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        assignmentsStorageKey,
-        JSON.stringify(projectAssignments)
-      )
-    } catch (error) {
-      console.error('Impossible de sauvegarder les projets', error)
-    }
-  }, [assignmentsStorageKey, projectAssignments])
-
-  useEffect(() => {
-    if (!profileMenuOpen) {
-      return
-    }
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!profileMenuRef.current) {
-        return
-      }
-      if (!profileMenuRef.current.contains(event.target as Node)) {
-        setProfileMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [profileMenuOpen])
-
-  const handleDragStart = (event: DragEvent<HTMLDivElement>, id: string) => {
-    event.dataTransfer.setData('text/plain', id)
-    event.dataTransfer.effectAllowed = 'move'
-  }
-
-  const handleDragEnd = () => {
-    setDragOverProject(null)
-  }
-
-  const handleLogoutClick = () => {
-    setProfileMenuOpen(false)
-  }
-
-  const handleDragOver = (
-    event: DragEvent<HTMLDivElement>,
-    projectName: string
-  ) => {
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'move'
-    setDragOverProject(projectName)
-  }
-
-  const handleDrop = (
-    event: DragEvent<HTMLDivElement>,
-    projectName: string
-  ) => {
-    event.preventDefault()
-    const documentId = event.dataTransfer.getData('text/plain')
-    if (!documentId) {
-      setDragOverProject(null)
-      return
-    }
-
-    setProjectAssignments((prev) => {
-      const next = { ...prev }
-      const current = new Set(next[projectName] ?? [])
-      current.add(documentId)
-      next[projectName] = Array.from(current)
-      return next
-    })
-    setDragOverProject(null)
-  }
 
   return (
-    <div className="min-h-screen bg-white flex">
-      {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-50 transform transition-transform duration-300 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 flex flex-col`}
-      >
-        {/* Logo */}
-        <div className="h-16 px-6 flex items-center border-b border-gray-200">
-          <span className="text-xl font-bold text-black">ROOM.</span>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-4 space-y-1">
-          {navigation.map((item) => (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
-                isActive(item.href)
-                  ? 'bg-blue-100 text-black'
-                  : 'text-black hover:bg-gray-100'
-              }`}
-            >
-              <item.icon className="h-4 w-4 text-black" />
-              <span className="font-medium">{item.name}</span>
-            </Link>
-          ))}
-
-          {/* PROJETS Section */}
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => setProjectsOpen((prev) => !prev)}
-              className="w-full px-3 py-2 text-xs font-semibold text-gray-800 uppercase tracking-wider flex items-center space-x-1"
-              aria-expanded={projectsOpen}
-            >
-              {projectsOpen ? (
-                <ChevronDown className="h-3 w-3 text-black" />
-              ) : (
-                <ChevronRight className="h-3 w-3 text-black" />
-              )}
-              <span>PROJETS</span>
-            </button>
-            {projectsOpen && (
-              <div className="space-y-1 mt-2">
-                {projects.map((project) => (
-                  <div
-                    key={project.name}
-                    className={`rounded-lg px-3 py-2 ${
-                      dragOverProject === project.name
-                        ? 'bg-blue-50 ring-1 ring-blue-200'
-                        : 'hover:bg-gray-100'
-                    }`}
-                    onDragOver={(event) => handleDragOver(event, project.name)}
-                    onDragLeave={() => setDragOverProject(null)}
-                    onDrop={(event) => handleDrop(event, project.name)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleProject(project.name)}
-                      className="flex w-full items-center space-x-2 text-left"
-                    >
-                      <ChevronRight
-                        className={`h-3 w-3 text-gray-600 transition-transform duration-200 ${
-                          isProjectExpanded(project.name) ? 'rotate-90' : ''
-                        }`}
-                      />
-                      <div
-                        className={`w-6 h-6 ${project.color} rounded flex items-center justify-center text-white text-xs font-semibold`}
-                      >
-                        {project.icon}
-                      </div>
-                      <span className="text-black text-sm">{project.name}</span>
-                    </button>
-                    {isProjectExpanded(project.name) && (
-                      <div className="mt-2 space-y-1">
-                        {(projectAssignments[project.name] ?? []).length === 0 ? (
-                          <div className="text-xs text-gray-500">
-                            Déposez un document ici
-                          </div>
-                        ) : (
-                          (projectAssignments[project.name] ?? []).map((docId) => {
-                            const doc = recentById.get(docId)
-                            if (!doc) {
-                              return null
-                            }
-                            return (
-                            <Link
-                                key={doc.id}
-                                to={`/recent/${doc.id}`}
-                              className="flex items-center gap-2 rounded px-2 py-1 text-xs text-gray-800 hover:bg-gray-50"
-                              >
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-gray-100 text-gray-700">
-                                {(() => {
-                                  const category = doc.documentCategory ?? 'valuation'
-                                  const Icon = documentIconByCategory[category]
-                                  return <Icon className="h-3 w-3" />
-                                })()}
-                              </span>
-                                {doc.title}
-                              </Link>
-                            )
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* RÉCENT Section */}
-          <div className="mt-6">
-            <div className="px-3 py-2 text-xs font-semibold text-gray-800 uppercase tracking-wider flex items-center space-x-1">
-              <Clock className="h-3 w-3 text-black" />
-              <span>RÉCENT</span>
-            </div>
-            <div className="space-y-1 mt-2">
-              {recentDocuments.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-800">
-                  Aucun document recent
-                </div>
-              ) : (
-                recentDocuments.map((item) => (
-                  <div
-                    key={item.id}
-                    className="relative flex items-start justify-between gap-2 rounded-lg px-3 py-2 hover:bg-gray-100"
-                    draggable
-                    onDragStart={(event) => handleDragStart(event, item.id)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <Link
-                      to={`/recent/${item.id}`}
-                      className="flex-1"
-                    >
-                      <div className="text-black text-sm font-medium">
-                        {item.title}
-                      </div>
-                      <div className="text-gray-800 text-xs mt-1">
-                        {new Date(item.createdAt).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </div>
-                    </Link>
-                    <button
-                      type="button"
-                      aria-label="Actions"
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        setOpenMenuId((prev) => (prev === item.id ? null : item.id))
-                      }}
-                      className="mt-1 rounded p-1 text-gray-600 hover:bg-gray-200"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-                    {openMenuId === item.id && (
-                      <div className="absolute right-3 top-10 z-10 w-40 rounded-md border border-gray-200 bg-white shadow-lg">
-                        <button
-                          type="button"
-                          className="w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50"
-                          onClick={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            const nextTitle = window.prompt(
-                              'Renommer le document',
-                              item.title
-                            )
-                            if (nextTitle && nextTitle.trim().length > 0) {
-                              renameRecentDocument(item.id, nextTitle.trim())
-                            }
-                            setOpenMenuId(null)
-                          }}
-                        >
-                          Renommer
-                        </button>
-                        <button
-                          type="button"
-                          className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                          onClick={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            const confirmed = window.confirm(
-                              'Supprimer ce document des récents ?'
-                            )
-                            if (confirmed) {
-                              removeRecentDocument(item.id)
-                            }
-                            setOpenMenuId(null)
-                          }}
-                        >
-                          Supprimer
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
+    <div className="min-h-screen bg-[#f8f8f6]">
+      <div className="flex">
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 w-16 border-r border-gray-200 bg-white transition-transform lg:translate-x-0 ${
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="flex h-16 items-center justify-center border-b border-gray-200">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-900 text-xs font-semibold text-white">
+              R
             </div>
           </div>
-        </nav>
-
-        {/* User Profile */}
-      <div className="px-4 py-4 border-t border-gray-200">
-          <div className="relative" ref={profileMenuRef}>
-            <button
-              type="button"
-              onClick={() => setProfileMenuOpen((prev) => !prev)}
-              className="w-full flex items-center justify-between rounded-md px-2 py-1 hover:bg-gray-100"
-              aria-haspopup="menu"
-              aria-expanded={profileMenuOpen}
-            >
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <span className="text-gray-700 font-semibold text-sm">
-                    {user?.firstName?.[0] ||
-                      user?.lastName?.[0] ||
-                      user?.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() ||
-                      "?"}
-                  </span>
-                </div>
-                <div className="text-left">
-                  <div className="text-black text-sm font-medium">
-                    {user?.firstName || user?.lastName
-                      ? `${user?.firstName ?? ""} ${user?.lastName ?? ""}`.trim()
-                      : "Utilisateur"}
-                  </div>
-                  <div className="text-gray-800 text-xs">
-                    {user?.primaryEmailAddress?.emailAddress || ""}
-                  </div>
-                </div>
-              </div>
-              <ChevronUp
-                className={`h-4 w-4 text-gray-600 transition-transform ${
-                  profileMenuOpen ? 'rotate-180' : ''
+          <nav className="flex h-full flex-col items-center gap-2 py-4">
+            {navigation.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                aria-label={item.name}
+                className={`flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition ${
+                  isActive(item.href)
+                    ? 'bg-gray-900 text-white'
+                    : 'hover:bg-gray-100'
                 }`}
-              />
-            </button>
-            {profileMenuOpen && (
-              <div
-                role="menu"
-                className="absolute bottom-12 left-0 z-20 w-full rounded-md border border-gray-200 bg-white shadow-lg"
               >
-                <Link
-                  to="/settings"
-                  role="menuitem"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-800 hover:bg-gray-50"
+                <item.icon className="h-4 w-4" />
+              </Link>
+            ))}
+            <div className="mt-auto flex flex-col items-center gap-2 pb-6">
+              <button
+                type="button"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                aria-label="Aide"
+              >
+                <HelpCircle className="h-4 w-4" />
+              </button>
+              <SignOutButton redirectUrl="/login">
+                <button
+                  type="button"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100"
+                  aria-label="Déconnexion"
                 >
-                  <Settings className="h-4 w-4" />
-                  Paramètres
-                </Link>
-                <SignOutButton redirectUrl="/login">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={handleLogoutClick}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Déconnexion
-                  </button>
-                </SignOutButton>
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </SignOutButton>
+            </div>
+          </nav>
+        </aside>
+
+        <div className="flex-1 lg:ml-16">
+          <div className="sticky top-0 z-40 border-b border-gray-200 bg-[#f8f8f6]/95 backdrop-blur">
+            <div className="flex items-center gap-4 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 lg:hidden"
+              >
+                Menu
+              </button>
+              <div className="min-w-[120px] text-sm font-semibold text-gray-900">
+                {pageMeta.title}
               </div>
-            )}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm text-gray-500 shadow-sm">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <input
+                    className="w-full bg-transparent text-sm text-gray-700 outline-none placeholder:text-gray-400"
+                    placeholder={pageMeta.placeholder}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {pageMeta.actionLabel ? (
+                  <button className="rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-sm">
+                    {pageMeta.actionLabel}
+                  </button>
+                ) : null}
+                <button className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs text-gray-600">
+                  Help
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main content */}
-      <div className="flex-1 lg:pl-64 bg-white">
-        {/* Top bar */}
-        <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-4 border-b border-gray-200 bg-white px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="lg:hidden -m-2.5 p-2.5 text-gray-700"
-          >
-            <span className="sr-only">Ouvrir la sidebar</span>
-            <Menu className="h-5 w-5 text-black" />
-          </button>
-        </div>
-
-        {/* Page content */}
-        <main className="py-8 bg-white">
-          <div className="px-4 sm:px-6 lg:px-8">
+          <main className="px-6 py-8">
             <Outlet />
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
 
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
+      {sidebarOpen ? (
         <div
-          className="fixed inset-0 z-40 bg-gray-600 bg-opacity-75 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
-      )}
+      ) : null}
     </div>
   )
 }
