@@ -128,7 +128,7 @@ export default function Research() {
     <div className="relative min-h-[80vh] px-6 pb-24 pt-4">
       <div className="flex flex-col items-center lg:pr-[360px]">
         <div className="w-full max-w-3xl">
-          <div className="space-y-6 pb-24">
+          <div className="space-y-6 pb-16">
           {messages.map((message) => {
             if (message.role === "user") {
               return (
@@ -147,7 +147,7 @@ export default function Research() {
               </div>
             );
           })}
-          <div ref={endRef} className="scroll-mb-24" />
+          <div ref={endRef} className="scroll-mb-16" />
           </div>
 
         </div>
