@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   CalendarClock,
-  ChevronLeft,
   FileText,
   HelpCircle,
   History,
@@ -86,24 +85,10 @@ function LayoutContent() {
           onMouseEnter={() => setSidebarCollapsed(false)}
           onMouseLeave={() => setSidebarCollapsed(true)}
         >
-          <div className="flex h-14 items-center justify-between px-4 text-xl font-semibold text-gray-900">
+          <div className="flex h-14 items-center px-4 text-xl font-semibold text-gray-900">
             <span className={sidebarCollapsed ? 'text-lg' : ''}>
               {sidebarCollapsed ? 'r' : 'rogo'}
             </span>
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed((prev) => !prev)}
-              className="hidden h-7 w-7 items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 lg:flex"
-              aria-label={
-                sidebarCollapsed ? 'Déployer le menu' : 'Réduire le menu'
-              }
-            >
-              <ChevronLeft
-                className={`h-3 w-3 transition-transform ${
-                  sidebarCollapsed ? 'rotate-180' : ''
-                }`}
-              />
-            </button>
           </div>
           <div className="px-4 pb-2">
             <button
@@ -113,7 +98,9 @@ function LayoutContent() {
               }`}
               title="New Chat"
             >
-              <MessageSquarePlus className="h-4 w-4" />
+              <MessageSquarePlus
+                className={sidebarCollapsed ? 'h-6 w-6' : 'h-4 w-4'}
+              />
               {!sidebarCollapsed ? 'New Chat' : null}
             </button>
           </div>
