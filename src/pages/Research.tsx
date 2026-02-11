@@ -47,6 +47,37 @@ export default function Research() {
     }
   };
 
+  const parseStructured = (text?: string) => {
+    if (!text) return null;
+    if (!text.trim().startsWith("{")) return null;
+    try {
+      const parsed = JSON.parse(text) as {
+        title?: string;
+        summary?: string;
+        sections?: Array<{
+          heading?: string;
+          paragraphs?: string[];
+          bullets?: string[];
+        }>;
+        tables?: Array<{
+          title?: string;
+          columns?: string[];
+          rows?: string[][];
+        }>;
+        conclusion?: string;
+      };
+      const hasContent =
+        !!parsed.title ||
+        !!parsed.summary ||
+        (parsed.sections?.length ?? 0) > 0 ||
+        (parsed.tables?.length ?? 0) > 0 ||
+        !!parsed.conclusion;
+      return hasContent ? parsed : null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey);
@@ -165,11 +196,12 @@ export default function Research() {
                 </div>
               );
             }
+            const structured = message.structured || parseStructured(message.text);
             return (
               <div key={message.id} className="rounded-2xl bg-white px-6 py-5 shadow-sm">
                 <article className="ai-answer text-gray-800">
-                  {message.structured ? (
-                    <StructuredAnswer answer={message.structured} />
+                  {structured ? (
+                    <StructuredAnswer answer={structured} />
                   ) : (
                     <MarkdownAnswer content={message.text} />
                   )}
