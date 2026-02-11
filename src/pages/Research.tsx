@@ -60,7 +60,7 @@ export default function Research() {
       if (start >= 0 && end > start) {
         normalized = normalized.slice(start, end + 1);
       }
-      for (let i = 0; i < 3; i += 1) {
+      for (let i = 0; i < 5; i += 1) {
         normalized = normalized.replace(/^\{\s*\{/, "{");
       }
       return normalized;
@@ -101,13 +101,57 @@ export default function Research() {
     return hasContent ? parsed : null;
   };
 
+  const normalizeMessage = (
+    message: {
+      id: string;
+      role: "user" | "assistant";
+      text: string;
+      structured?: {
+        title?: string;
+        summary?: string;
+        sections?: Array<{
+          heading?: string;
+          paragraphs?: string[];
+          bullets?: string[];
+        }>;
+        tables?: Array<{
+          title?: string;
+          columns?: string[];
+          rows?: string[][];
+        }>;
+        conclusion?: string;
+      };
+      sources?: Array<{
+        title?: string;
+        url?: string;
+        publishedDate?: string;
+        author?: string;
+        excerpt?: string;
+      }>;
+    }
+  ) => {
+    if (message.role !== "assistant") return message;
+    const parsed = message.structured || parseStructured(message.text);
+    const jsonish =
+      message.text.trim().includes('"title"') ||
+      message.text.trim().includes('"sections"') ||
+      (message.text.includes("{") && message.text.includes("}"));
+    if (parsed) {
+      return { ...message, structured: parsed, text: jsonish ? "" : message.text };
+    }
+    if (jsonish) {
+      return { ...message, text: "Réponse en cours de normalisation." };
+    }
+    return message;
+  };
+
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as typeof messages;
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setMessages(parsed);
+          setMessages(parsed.map(normalizeMessage));
           return;
         }
       }
