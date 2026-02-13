@@ -22,6 +22,7 @@ export default function Settings() {
     connectedSlugs: Set<string>
   }>({ loading: true, toolkits: [], connectedSlugs: new Set() })
   const [composioSearch, setComposioSearch] = useState('')
+  const [ragSync, setRagSync] = useState<{ loading: boolean; message?: string }>({ loading: false })
   const composioMessage = useMemo(() => {
     const statusParam = searchParams.get('composio')
     const toolkitParam = searchParams.get('toolkit')
@@ -95,6 +96,21 @@ export default function Settings() {
       }))
     }
   }, [])
+
+  const handleRagSync = async () => {
+    setRagSync({ loading: true })
+    try {
+      const res = await fetch('/api/rag/sync', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || 'Erreur sync')
+      setRagSync({ loading: false, message: data?.message || 'Documents indexés.' })
+    } catch (e) {
+      setRagSync({
+        loading: false,
+        message: e instanceof Error ? e.message : 'Erreur lors de la synchronisation.',
+      })
+    }
+  }
 
   const handleComposioConnect = async (toolkitSlug?: string) => {
     if (!toolkitSlug) {
@@ -341,15 +357,37 @@ export default function Settings() {
             placeholder="Rechercher une application (CRM, data room, market data...)"
             className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 sm:max-w-md"
           />
-          <button
-            type="button"
-            onClick={() => loadComposioToolkits(composioSearch)}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
-          >
-            Rafraîchir
-            <RefreshCw className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {(composioState.connectedSlugs.has('googledrive') ||
+              composioState.connectedSlugs.has('google_drive') ||
+              composioState.connectedSlugs.has('onedrive') ||
+              composioState.connectedSlugs.has('one_drive')) && (
+              <button
+                type="button"
+                onClick={handleRagSync}
+                disabled={ragSync.loading}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+              >
+                {ragSync.loading ? 'Indexation...' : 'Synchroniser documents Drive'}
+                <RefreshCw className={`h-4 w-4 ${ragSync.loading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => loadComposioToolkits(composioSearch)}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            >
+              Rafraîchir
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          </div>
         </div>
+
+        {ragSync.message && (
+          <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {ragSync.message}
+          </div>
+        )}
 
         {composioState.error && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

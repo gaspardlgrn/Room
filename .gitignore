@@ -11,6 +11,9 @@
 /build
 .vercel/
 
+# RAG vector DB
+/data
+
 # misc
 .DS_Store
 *.pem

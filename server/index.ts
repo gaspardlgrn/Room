@@ -13,6 +13,7 @@ import { generateTranscriptDocx } from "./lib/transcript-docx.js";
 import { generateTranscriptPptx } from "./lib/transcript-pptx.js";
 import { DocumentType, InvestmentData } from "./types/index.js";
 import OpenAI from "openai";
+import { indexDocuments, searchDocuments } from "./lib/rag.js";
 import { createClerkClient, verifyToken } from "@clerk/backend";
 
 const app = express();
@@ -360,6 +361,94 @@ async function getComposioConnectedAccounts(): Promise<
       return id && slug ? { id, toolkitSlug: String(slug).toLowerCase() } : null;
     })
     .filter(Boolean) as { id: string; toolkitSlug: string }[];
+}
+
+/** Récupère les documents Drive/OneDrive pour l'indexation RAG. */
+async function getComposioDocumentsForRag(): Promise<
+  { filename: string; source: string; content: string }[]
+> {
+  const accounts = await getComposioConnectedAccounts();
+  const docs: { filename: string; source: string; content: string }[] = [];
+  const maxFilesPerDrive = 25;
+  const maxCharsPerFile = 15000;
+
+  for (const { id, toolkitSlug } of accounts) {
+    try {
+      if (toolkitSlug === "googledrive" || toolkitSlug === "google_drive") {
+        let out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+          connected_account_id: id,
+          arguments: { page_size: 30 },
+        }) as any;
+        if (!out?.files?.length && !out?.items?.length) {
+          out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            connected_account_id: id,
+            arguments: { pageSize: 30 },
+          }) as any;
+        }
+        const files = out?.files ?? out?.items ?? out?.data ?? [];
+        const list = Array.isArray(files) ? files : [];
+        for (let i = 0; i < list.length && docs.length < maxFilesPerDrive * 2; i++) {
+          const f = list[i];
+          const fileId = f?.id ?? f?.fileId;
+          const name = f?.name ?? f?.title ?? "(sans nom)";
+          if (!fileId) continue;
+          try {
+            const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
+              connected_account_id: id,
+              arguments: { file_id: fileId },
+            }) as any;
+            const text =
+              parseRes?.text ??
+              parseRes?.content ??
+              (typeof parseRes?.data === "string" ? parseRes.data : null) ??
+              parseRes?.exportedContent;
+            if (text && typeof text === "string" && text.length > 0) {
+              docs.push({
+                filename: String(name).slice(0, 200),
+                source: "Google Drive",
+                content: text.slice(0, maxCharsPerFile),
+              });
+            }
+          } catch {
+            // Ignorer
+          }
+        }
+      } else if (toolkitSlug === "onedrive" || toolkitSlug === "one_drive") {
+        const out = await composioExecuteTool("ONE_DRIVE_ONEDRIVE_LIST_ITEMS", {
+          connected_account_id: id,
+          arguments: { top: 30 },
+        }) as any;
+        const items = out?.value ?? out?.items ?? out?.data ?? [];
+        const list = Array.isArray(items) ? items : [];
+        for (let i = 0; i < list.length && docs.length < maxFilesPerDrive * 2; i++) {
+          const f = list[i];
+          const itemId = f?.id ?? f?.itemId;
+          const name = f?.name ?? f?.title ?? "(sans nom)";
+          if (!itemId) continue;
+          try {
+            const dlRes = await composioExecuteTool("ONE_DRIVE_DOWNLOAD_FILE", {
+              connected_account_id: id,
+              arguments: { item_id: itemId } as any,
+            }) as any;
+            const text =
+              dlRes?.text ?? dlRes?.content ?? (typeof dlRes?.data === "string" ? dlRes.data : null);
+            if (text && typeof text === "string" && text.length > 0) {
+              docs.push({
+                filename: String(name).slice(0, 200),
+                source: "OneDrive",
+                content: text.slice(0, maxCharsPerFile),
+              });
+            }
+          } catch {
+            // Ignorer
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[RAG] Erreur fetch docs pour", toolkitSlug, err);
+    }
+  }
+  return docs;
 }
 
 /** Exécute un outil Composio et retourne le résultat (data) ou undefined en cas d'erreur. */
@@ -793,14 +882,26 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const intent = await classifyIntent(message.trim());
-    const exaResults = await exaSearch(message.trim());
-    const [composioContext, composioData] = await Promise.all([
+    const apiKey = process.env.OPENAI_API_KEY;
+    const [exaResults, composioContext, composioData, ragChunks] = await Promise.all([
+      exaSearch(message.trim()),
       getComposioContext(),
       getComposioDataForContext(),
+      apiKey ? searchDocuments(message.trim(), apiKey, 6) : Promise.resolve([]),
     ]);
-    if (composioContext && !composioData) {
+    if (composioContext && !composioData && ragChunks.length === 0) {
       console.warn("[Composio] Comptes connectés mais aucune donnée récupérée — vérifier COMPOSIO_USER_ID et les connexions.");
     }
+    const ragContext =
+      ragChunks.length > 0
+        ? "Extraits pertinents de tes documents Drive/OneDrive (recherche sémantique RAG):\n\n" +
+          ragChunks
+            .map(
+              (c, i) =>
+                `[${i + 1}] ${c.filename} (${c.source}):\n${c.text.slice(0, 1200)}`
+            )
+            .join("\n\n---\n\n")
+        : "";
     const exaContext = exaResults
       .map((result, index) => {
         const title = result.title || "Source";
@@ -853,6 +954,16 @@ app.post("/api/chat", async (req, res) => {
               {
                 role: "system" as const,
                 content: composioData,
+              },
+            ]
+          : []),
+        ...(ragContext
+          ? [
+              {
+                role: "system" as const,
+                content:
+                  "IMPORTANT: Les extraits ci-dessous proviennent d'une recherche sémantique dans tes documents Drive/OneDrive. Utilise-les pour répondre à la question. Cite le nom du fichier source quand tu t'appuies sur un extrait.\n\n" +
+                  ragContext,
               },
             ]
           : []),
@@ -987,6 +1098,36 @@ app.post("/api/composio/connect", async (req, res) => {
     return res.status(link.status).json({ error: link.error });
   }
   return res.json({ redirect_url: link.data?.redirect_url });
+});
+
+app.post("/api/rag/sync", async (_req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
+  }
+  try {
+    const docs = await getComposioDocumentsForRag();
+    if (docs.length === 0) {
+      return res.json({
+        ok: true,
+        indexed: 0,
+        chunks: 0,
+        message: "Aucun document Drive/OneDrive à indexer. Connecte Google Drive ou OneDrive dans Paramètres.",
+      });
+    }
+    const { indexed, chunks } = await indexDocuments(docs, apiKey);
+    return res.json({
+      ok: true,
+      indexed,
+      chunks,
+      message: `${indexed} document(s) indexé(s), ${chunks} chunk(s) dans la base vectorielle.`,
+    });
+  } catch (err) {
+    console.error("[RAG] Erreur sync:", err);
+    return res.status(500).json({
+      error: "Erreur lors de l'indexation des documents.",
+    });
+  }
 });
 
 app.get("/api/microsoft/oauth/start", async (_req, res) => {
