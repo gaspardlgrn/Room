@@ -512,11 +512,15 @@ async function getComposioDocumentsForRag(
           const mimeType = f?.mimeType ?? f?.mime_type ?? f?.mimetype ?? "";
           if (!fileId) continue;
           let text: string | null = null;
+          const exportMime = /spreadsheet/i.test(mimeType)
+            ? "text/csv"
+            : /document|presentation/i.test(mimeType)
+              ? "text/plain"
+              : null;
+          const baseArgs = { file_id: fileId };
+          const parseArgs = exportMime ? { ...baseArgs, mime_type: exportMime } : baseArgs;
+          const dlArgs = exportMime ? { ...baseArgs, mime_type: exportMime } : baseArgs;
           try {
-            const parseArgs: Record<string, unknown> = { file_id: fileId };
-            if (/document|spreadsheet|presentation/i.test(mimeType)) {
-              parseArgs.mime_type = "text/plain";
-            }
             const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
               ...toolUser,
               connected_account_id: id,
@@ -534,7 +538,7 @@ async function getComposioDocumentsForRag(
               const dlRes = await composioExecuteTool("GOOGLEDRIVE_DOWNLOAD_FILE", {
                 ...toolUser,
                 connected_account_id: id,
-                arguments: { file_id: fileId },
+                arguments: dlArgs,
               }) as any;
               text = await extractFileContentFromResponse(dlRes);
               if (!text && !dlSample) {
