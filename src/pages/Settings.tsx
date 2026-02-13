@@ -123,7 +123,11 @@ export default function Settings() {
       })
       const data = await parseJsonResponse(res)
       if (!res.ok) throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Erreur sync')
-      const msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
+      let msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
+      if (data?.debug && data.indexed === 0) {
+        const d = data.debug
+        msg += ` [Drive: ${d.driveAccounts ?? '?'}, Fichiers: ${d.filesListed ?? '?'}, Extraits: ${d.docsExtracted ?? '?'}]`
+      }
       setRagSync({ loading: false, message: msg })
     } catch (e) {
       setRagSync({
