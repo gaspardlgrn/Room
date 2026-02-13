@@ -461,7 +461,14 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
   for (const c of candidates) {
     if (typeof c === "string" && c.trim().length > 0) return c.trim();
   }
-  const url = res?.file_url ?? res?.url ?? res?.download_url ?? res?.data?.file_url ?? res?.data?.url;
+  const url =
+    res?.file_url ??
+    res?.url ??
+    res?.download_url ??
+    res?.downloaded_file_content?.s3url ??
+    res?.data?.file_url ??
+    res?.data?.url ??
+    res?.data?.downloaded_file_content?.s3url;
   if (typeof url === "string" && url.startsWith("http")) {
     try {
       const r = await fetch(url);
