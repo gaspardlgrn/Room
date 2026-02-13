@@ -478,7 +478,7 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
 /** Récupère les documents Google Drive uniquement pour l'indexation RAG. */
 async function getComposioDocumentsForRag(
   userId?: string
-): Promise<{ docs: { filename: string; source: string; content: string }[]; debug: { driveAccounts: number; filesListed: number; docsExtracted: number } }> {
+): Promise<{ docs: { filename: string; source: string; content: string }[]; debug: { driveAccounts: number; filesListed: number; docsExtracted: number; parseSample?: string; dlSample?: string } }> {
   const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
   const docAccounts = accounts.filter((a) =>
     a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
@@ -491,6 +491,8 @@ async function getComposioDocumentsForRag(
     .map((a) => a.id);
   const toolUser = effectiveUserId ? { user_id: effectiveUserId } : {};
   let filesListed = 0;
+  let parseSample: string | undefined;
+  let dlSample: string | undefined;
 
   for (const { id, toolkitSlug } of docAccounts) {
     try {
@@ -521,6 +523,9 @@ async function getComposioDocumentsForRag(
               arguments: parseArgs,
             }) as any;
             text = await extractFileContentFromResponse(parseRes);
+            if (!text && !parseSample) {
+              parseSample = JSON.stringify(parseRes)?.slice(0, 600) ?? "null";
+            }
           } catch {
             // Ignorer
           }
@@ -532,6 +537,9 @@ async function getComposioDocumentsForRag(
                 arguments: { file_id: fileId },
               }) as any;
               text = await extractFileContentFromResponse(dlRes);
+              if (!text && !dlSample) {
+                dlSample = JSON.stringify(dlRes)?.slice(0, 600) ?? "null";
+              }
             } catch {
               // Ignorer
             }
@@ -558,7 +566,13 @@ async function getComposioDocumentsForRag(
   }
   return {
     docs,
-    debug: { driveAccounts: docAccounts.length, filesListed, docsExtracted: docs.length },
+    debug: {
+      driveAccounts: docAccounts.length,
+      filesListed,
+      docsExtracted: docs.length,
+      ...(parseSample && { parseSample }),
+      ...(dlSample && { dlSample }),
+    },
   };
 }
 

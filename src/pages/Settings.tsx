@@ -125,8 +125,20 @@ export default function Settings() {
       if (!res.ok) throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Erreur sync')
       let msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
       if (data?.debug && data.indexed === 0) {
-        const d = data.debug as { driveAccounts?: number; filesListed?: number; docsExtracted?: number }
+        const d = data.debug as {
+          driveAccounts?: number
+          filesListed?: number
+          docsExtracted?: number
+          parseSample?: string
+          dlSample?: string
+        }
         msg += ` [Drive: ${d.driveAccounts ?? '?'}, Fichiers: ${d.filesListed ?? '?'}, Extraits: ${d.docsExtracted ?? '?'}]`
+        if (d.parseSample) {
+          msg += `\n\nRéponse PARSE (extrait): ${d.parseSample}`
+        }
+        if (d.dlSample) {
+          msg += `\n\nRéponse DOWNLOAD (extrait): ${d.dlSample}`
+        }
       }
       setRagSync({ loading: false, message: msg })
     } catch (e) {
