@@ -13,7 +13,8 @@ import { generateTranscriptDocx } from "./lib/transcript-docx.js";
 import { generateTranscriptPptx } from "./lib/transcript-pptx.js";
 import { DocumentType, InvestmentData } from "./types/index.js";
 import OpenAI from "openai";
-import { indexDocuments, searchDocuments } from "./lib/rag.js";
+import { searchDocuments } from "./lib/rag.js";
+import { runRagSync } from "./rag-sync-standalone.js";
 import { createClerkClient, verifyToken } from "@clerk/backend";
 
 const app = express();
@@ -421,23 +422,6 @@ async function getGoogleSheetContent(
   return text.length > 0 ? text.slice(0, maxChars) : null;
 }
 
-/** Stringify sécurisé (évite les refs circulaires). */
-function safeStringify(obj: any, maxLen = 600): string {
-  try {
-    const seen = new WeakSet();
-    const str = JSON.stringify(obj, (_, v) => {
-      if (typeof v === "object" && v !== null) {
-        if (seen.has(v)) return "[Circular]";
-        seen.add(v);
-      }
-      return v;
-    });
-    return (str ?? "null").slice(0, maxLen);
-  } catch {
-    return "null";
-  }
-}
-
 /** Cherche récursivement une chaîne de contenu dans un objet (fallback). */
 function findLongString(obj: any, minLen = 200): string | null {
   if (!obj) return null;
@@ -511,112 +495,6 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
   }
   const found = findLongString(res);
   return found ? found.slice(0, 15000) : null;
-}
-
-/** Récupère les documents Google Drive uniquement pour l'indexation RAG. */
-async function getComposioDocumentsForRag(
-  userId?: string
-): Promise<{ docs: { filename: string; source: string; content: string }[]; debug: { driveAccounts: number; filesListed: number; docsExtracted: number; parseSample?: string; dlSample?: string } }> {
-  const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
-  const docAccounts = accounts.filter((a) =>
-    a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
-  );
-  const docs: { filename: string; source: string; content: string }[] = [];
-  const maxFilesPerDrive = 1;
-  const maxCharsPerFile = 8000;
-  const sheetsAccountIds = accounts
-    .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
-    .map((a) => a.id);
-  const toolUser = effectiveUserId ? { user_id: effectiveUserId } : {};
-  let filesListed = 0;
-  let parseSample: string | undefined;
-  let dlSample: string | undefined;
-  const accountsToProcess = docAccounts.slice(0, 1);
-
-  for (const { id, toolkitSlug } of accountsToProcess) {
-    try {
-      if (toolkitSlug === "googledrive" || toolkitSlug === "google_drive") {
-        const out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
-          ...toolUser,
-          connected_account_id: id,
-          arguments: { page_size: 3 },
-        }) as any;
-        let files = out?.files ?? out?.items ?? out?.data?.files ?? out?.data?.items ?? out?.data ?? out?.value ?? [];
-        let list = Array.isArray(files) ? files : [];
-        filesListed += list.length;
-        for (let i = 0; i < list.length && docs.length < maxFilesPerDrive; i++) {
-          const f = list[i];
-          const fileId = f?.id ?? f?.fileId ?? f?.file_id;
-          const name = f?.name ?? f?.title ?? f?.filename ?? "(sans nom)";
-          const mimeType = f?.mimeType ?? f?.mime_type ?? f?.mimetype ?? "";
-          if (!fileId) continue;
-          let text: string | null = null;
-          const exportMime = /spreadsheet/i.test(mimeType)
-            ? "text/csv"
-            : /document|presentation/i.test(mimeType)
-              ? "text/plain"
-              : null;
-          const baseArgs = { file_id: fileId };
-          const parseArgs = exportMime ? { ...baseArgs, mime_type: exportMime } : baseArgs;
-          const dlArgs = exportMime ? { ...baseArgs, mime_type: exportMime } : baseArgs;
-          try {
-            const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
-              ...toolUser,
-              connected_account_id: id,
-              arguments: parseArgs,
-            }) as any;
-            text = await extractFileContentFromResponse(parseRes);
-            if (!text && !parseSample) {
-              parseSample = safeStringify(parseRes);
-            }
-          } catch {
-            // Ignorer
-          }
-          if (!text) {
-            try {
-              const dlRes = await composioExecuteTool("GOOGLEDRIVE_DOWNLOAD_FILE", {
-                ...toolUser,
-                connected_account_id: id,
-                arguments: dlArgs,
-              }) as any;
-              text = await extractFileContentFromResponse(dlRes);
-              if (!text && !dlSample) {
-                dlSample = safeStringify(dlRes);
-              }
-            } catch {
-              // Ignorer
-            }
-          }
-          if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
-            try {
-              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, effectiveUserId);
-            } catch {
-              // Ignorer
-            }
-          }
-          if (text && typeof text === "string" && text.length > 0) {
-            docs.push({
-              filename: String(name).slice(0, 200),
-              source: "Google Drive",
-              content: text.slice(0, maxCharsPerFile),
-            });
-          }
-        }
-      }
-    } catch (err) {
-      logger.error({ err, toolkitSlug }, "[RAG] Erreur fetch docs");
-    }
-  }
-  return {
-    docs,
-    debug: {
-      driveAccounts: docAccounts.length,
-      filesListed,
-      docsExtracted: docs.length,
-      ...(parseSample && { parseSample }),
-      ...(dlSample && { dlSample }),
-    },
-  };
 }
 
 /** Exécute un outil Composio et retourne le résultat (data) ou undefined en cas d'erreur. */
@@ -1344,77 +1222,11 @@ app.get("/api/rag/sync", (_req, res) => {
 });
 
 app.post("/api/rag/sync", async (req, res) => {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const pineconeKey = process.env.PINECONE_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
-  }
-  if (!pineconeKey) {
-    return res.status(500).json({
-      error: "PINECONE_API_KEY manquante. Crée un index Pinecone (dimension 1536) et ajoute la clé dans les variables d'environnement.",
-    });
-  }
   try {
-    let userId: string;
-    let accounts: { id: string; toolkitSlug: string }[];
-    let effectiveUserId: string;
-    try {
-      userId = await getComposioUserIdFromRequest(req);
-      [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
-    } catch (authErr) {
-      const authMsg = authErr instanceof Error ? authErr.message : String(authErr);
-      logger.error({ err: authErr }, "[RAG] auth/accounts failed");
-      return res.status(500).json({
-        error: "Erreur lors de la récupération des comptes.",
-        detail: authMsg,
-      });
-    }
-    const hasDrive = accounts.some(
-      (a) => a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
-    );
-    let docs: { filename: string; source: string; content: string }[];
-    let debug: { driveAccounts: number; filesListed: number; docsExtracted: number; parseSample?: string; dlSample?: string };
-    try {
-      const result = await getComposioDocumentsForRag(userId);
-      docs = result.docs;
-      debug = result.debug;
-    } catch (ragErr) {
-      logger.error({ err: ragErr }, "[RAG] getComposioDocumentsForRag failed");
-      docs = [];
-      debug = { driveAccounts: 0, filesListed: 0, docsExtracted: 0 };
-    }
-    if (docs.length === 0) {
-      const hint = hasDrive
-        ? " Comptes connectés mais aucun document récupéré."
-        : " Connecte Google Drive dans Paramètres > Composio.";
-      return res.json({
-        ok: true,
-        indexed: 0,
-        chunks: 0,
-        message: `Aucun document à indexer.${hint}`,
-        debug: { ...debug, userId, effectiveUserId, accountSlugs: accounts.map((a) => a.toolkitSlug) },
-      });
-    }
-    let indexed: number;
-    let chunks: number;
-    try {
-      const result = await indexDocuments(docs, apiKey);
-      indexed = result.indexed;
-      chunks = result.chunks;
-    } catch (idxErr) {
-      const idxMsg = idxErr instanceof Error ? idxErr.message : String(idxErr);
-      logger.error({ err: idxErr }, "[RAG] indexDocuments failed");
-      return res.status(500).json({
-        error: "Erreur lors de l'indexation Pinecone.",
-        detail: idxMsg,
-      });
-    }
-    return res.json({
-      ok: true,
-      indexed,
-      chunks,
-      message: `${indexed} document(s) indexé(s), ${chunks} chunk(s) dans Pinecone.`,
-    });
+    const auth = (req.headers.authorization as string) || "";
+    const cookie = req.headers.cookie;
+    const { status, body } = await runRagSync(auth, cookie);
+    return res.status(status).json(body);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err, message: msg }, "[RAG] Erreur sync");
