@@ -490,14 +490,14 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
     try {
       const r = await Promise.race([
         fetch(url),
-        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000)),
       ]);
       const reader = r.body?.getReader();
       if (!reader) return null;
       const decoder = new TextDecoder();
       let result = "";
       let total = 0;
-      const maxBytes = 80000;
+      const maxBytes = 50000;
       while (total < maxBytes) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -531,8 +531,9 @@ async function getComposioDocumentsForRag(
   let filesListed = 0;
   let parseSample: string | undefined;
   let dlSample: string | undefined;
+  const accountsToProcess = docAccounts.slice(0, 1);
 
-  for (const { id, toolkitSlug } of docAccounts) {
+  for (const { id, toolkitSlug } of accountsToProcess) {
     try {
       if (toolkitSlug === "googledrive" || toolkitSlug === "google_drive") {
         const out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
