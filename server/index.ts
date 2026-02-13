@@ -63,7 +63,7 @@ const httpLogger = pinoHttp({
 });
 
 app.disable("x-powered-by");
-app.set("trust proxy", process.env.TRUST_PROXY === "1");
+app.set("trust proxy", process.env.TRUST_PROXY === "1" || !!process.env.VERCEL);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(httpLogger);
 app.use((req, res, next) => {
@@ -98,6 +98,7 @@ app.use(
     max: RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: false,
   })
 );
 
@@ -451,7 +452,9 @@ async function getComposioDocumentsForRag(
         let files = out?.files ?? out?.items ?? out?.data ?? out?.value ?? [];
         let list = Array.isArray(files) ? files : [];
         if (list.length === 0 && out) {
-          logger.warn({ outKeys: Object.keys(out), sample: JSON.stringify(out).slice(0, 300) }, "[RAG] Drive LIST_FILES returned empty list, check response format");
+          logger.warn({ outKeys: Object.keys(out), sample: JSON.stringify(out).slice(0, 500) }, "[RAG] Drive LIST_FILES returned empty list");
+        } else if (list.length > 0) {
+          logger.info({ listLen: list.length, firstFile: list[0]?.name ?? list[0]?.title }, "[RAG] Drive list ok");
         }
         const sheetOut = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
           ...toolUser,
@@ -489,14 +492,14 @@ async function getComposioDocumentsForRag(
               parseRes?.content ??
               (typeof parseRes?.data === "string" ? parseRes.data : null) ??
               parseRes?.exportedContent;
-          } catch {
-            // Fichier non parseable (ex: Google Sheet natif)
+          } catch (parseErr) {
+            logger.warn({ fileId, name, mimeType, err: String(parseErr) }, "[RAG] PARSE_FILE failed");
           }
           if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
             try {
               text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, userId);
-            } catch {
-              // Ignorer
+            } catch (sheetErr) {
+              logger.warn({ fileId, name, err: String(sheetErr) }, "[RAG] getGoogleSheetContent failed");
             }
           }
           if (text && typeof text === "string" && text.length > 0) {
@@ -582,8 +585,11 @@ async function getComposioDocumentsForRag(
         }
       }
     } catch (err) {
-      console.error("[RAG] Erreur fetch docs pour", toolkitSlug, err);
+      logger.error({ err, toolkitSlug }, "[RAG] Erreur fetch docs");
     }
+  }
+  if (accounts.length > 0 && docs.length === 0) {
+    logger.warn({ userId, accountSlugs: accounts.map((a) => a.toolkitSlug) }, "[RAG] Comptes connectés mais 0 document extrait");
   }
   return docs;
 }
