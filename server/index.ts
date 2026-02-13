@@ -1361,8 +1361,12 @@ app.post("/api/rag/sync", async (req, res) => {
       userId = await getComposioUserIdFromRequest(req);
       [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
     } catch (authErr) {
+      const authMsg = authErr instanceof Error ? authErr.message : String(authErr);
       logger.error({ err: authErr }, "[RAG] auth/accounts failed");
-      return res.status(500).json({ error: "Erreur lors de la récupération des comptes." });
+      return res.status(500).json({
+        error: "Erreur lors de la récupération des comptes.",
+        detail: authMsg,
+      });
     }
     const hasDrive = accounts.some(
       (a) => a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
@@ -1397,8 +1401,12 @@ app.post("/api/rag/sync", async (req, res) => {
       indexed = result.indexed;
       chunks = result.chunks;
     } catch (idxErr) {
+      const idxMsg = idxErr instanceof Error ? idxErr.message : String(idxErr);
       logger.error({ err: idxErr }, "[RAG] indexDocuments failed");
-      return res.status(500).json({ error: "Erreur lors de l'indexation Pinecone." });
+      return res.status(500).json({
+        error: "Erreur lors de l'indexation Pinecone.",
+        detail: idxMsg,
+      });
     }
     return res.json({
       ok: true,
@@ -1411,7 +1419,7 @@ app.post("/api/rag/sync", async (req, res) => {
     logger.error({ err, message: msg }, "[RAG] Erreur sync");
     return res.status(500).json({
       error: "Erreur lors de l'indexation des documents.",
-      ...(process.env.NODE_ENV !== "production" && { detail: msg }),
+      detail: msg,
     });
   }
 });

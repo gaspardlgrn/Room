@@ -122,7 +122,11 @@ export default function Settings() {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
       const data = await parseJsonResponse(res)
-      if (!res.ok) throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Erreur sync')
+      if (!res.ok) {
+        const errMsg = (typeof data?.error === 'string' ? data.error : null) || 'Erreur sync'
+        const detail = typeof data?.detail === 'string' ? data.detail : ''
+        throw new Error(detail ? `${errMsg}: ${detail}` : errMsg)
+      }
       let msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
       if (data?.debug && data.indexed === 0) {
         const d = data.debug as {
