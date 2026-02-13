@@ -421,8 +421,30 @@ async function getGoogleSheetContent(
   return text.length > 0 ? text.slice(0, maxChars) : null;
 }
 
+/** Cherche récursivement une chaîne de contenu dans un objet (fallback). */
+function findLongString(obj: any, minLen = 200): string | null {
+  if (!obj) return null;
+  if (typeof obj === "string") {
+    return obj.length >= minLen && /[a-zA-Z]/.test(obj) ? obj.trim() : null;
+  }
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const found = findLongString(item, minLen);
+      if (found) return found;
+    }
+    return null;
+  }
+  if (typeof obj === "object") {
+    for (const k of ["content", "text", "body", "output", "exportedContent", "data"]) {
+      const found = findLongString(obj[k], minLen);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 /** Extrait le texte d'une réponse GOOGLEDRIVE_PARSE_FILE ou DOWNLOAD. */
-function extractFileContentFromResponse(res: any): string | null {
+async function extractFileContentFromResponse(res: any): Promise<string | null> {
   if (!res || typeof res !== "object") return null;
   const candidates = [
     res?.text,
@@ -430,13 +452,27 @@ function extractFileContentFromResponse(res: any): string | null {
     res?.exportedContent,
     res?.exported_content,
     res?.output,
+    res?.body,
     typeof res?.data === "string" ? res.data : null,
-    res?.data?.text ?? res?.data?.content ?? res?.data?.output,
+    res?.data?.text ?? res?.data?.content ?? res?.data?.output ?? res?.data?.body,
+    res?.result?.text ?? res?.result?.content,
+    res?.file?.content ?? res?.file?.text,
   ];
   for (const c of candidates) {
     if (typeof c === "string" && c.trim().length > 0) return c.trim();
   }
-  return null;
+  const url = res?.file_url ?? res?.url ?? res?.download_url ?? res?.data?.file_url ?? res?.data?.url;
+  if (typeof url === "string" && url.startsWith("http")) {
+    try {
+      const r = await fetch(url);
+      const txt = await r.text();
+      if (txt && txt.length > 0) return txt.trim();
+    } catch {
+      // Ignorer
+    }
+  }
+  const found = findLongString(res);
+  return found ? found.slice(0, 15000) : null;
 }
 
 /** Récupère les documents Google Drive uniquement pour l'indexation RAG. */
@@ -475,12 +511,16 @@ async function getComposioDocumentsForRag(
           if (!fileId) continue;
           let text: string | null = null;
           try {
+            const parseArgs: Record<string, unknown> = { file_id: fileId };
+            if (/document|spreadsheet|presentation/i.test(mimeType)) {
+              parseArgs.mime_type = "text/plain";
+            }
             const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
               ...toolUser,
               connected_account_id: id,
-              arguments: { file_id: fileId },
+              arguments: parseArgs,
             }) as any;
-            text = extractFileContentFromResponse(parseRes);
+            text = await extractFileContentFromResponse(parseRes);
           } catch {
             // Ignorer
           }
@@ -491,7 +531,7 @@ async function getComposioDocumentsForRag(
                 connected_account_id: id,
                 arguments: { file_id: fileId },
               }) as any;
-              text = extractFileContentFromResponse(dlRes);
+              text = await extractFileContentFromResponse(dlRes);
             } catch {
               // Ignorer
             }
@@ -640,7 +680,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
-            text = extractFileContentFromResponse(parseRes);
+            text = await extractFileContentFromResponse(parseRes);
           } catch {
             // Fichier non parseable (ex: Google Sheet natif)
           }
@@ -651,7 +691,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
                 connected_account_id: id,
                 arguments: { file_id: fileId },
               }) as any;
-              text = extractFileContentFromResponse(dlRes);
+              text = await extractFileContentFromResponse(dlRes);
             } catch {
               // Ignorer
             }
