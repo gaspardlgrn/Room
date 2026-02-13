@@ -460,9 +460,9 @@ async function getComposioDocumentsForRag(
         }
         for (let i = 0; i < list.length && docs.length < maxFilesPerDrive * 2; i++) {
           const f = list[i];
-          const fileId = f?.id ?? f?.fileId;
-          const name = f?.name ?? f?.title ?? "(sans nom)";
-          const mimeType = f?.mimeType ?? f?.mime_type ?? "";
+          const fileId = f?.id ?? f?.fileId ?? f?.file_id;
+          const name = f?.name ?? f?.title ?? f?.filename ?? "(sans nom)";
+          const mimeType = f?.mimeType ?? f?.mime_type ?? f?.mimetype ?? "";
           if (!fileId) continue;
           let text: string | null = null;
           try {
@@ -548,6 +548,7 @@ async function getComposioDocumentsForRag(
           if (!itemId) continue;
           try {
             const dlRes = await composioExecuteTool("ONE_DRIVE_DOWNLOAD_FILE", {
+              ...toolUser,
               connected_account_id: id,
               arguments: { item_id: itemId } as any,
             }) as any;
@@ -605,6 +606,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
 
   const parts: string[] = [];
   const maxSnippetLen = 400;
+  const toolUser = userId ? { user_id: userId } : {};
   const sheetsAccountIds = accounts
     .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
     .map((a) => a.id);
@@ -613,6 +615,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
     try {
       if (toolkitSlug === "gmail") {
         const out = await composioExecuteTool("GMAIL_FETCH_EMAILS", {
+          ...toolUser,
           connected_account_id: id,
           arguments: { max_results: 8 },
         }) as any;
@@ -628,6 +631,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
         }
       } else if (toolkitSlug === "outlook" || toolkitSlug === "microsoft_outlook") {
         const out = await composioExecuteTool("OUTLOOK_OUTLOOK_LIST_MESSAGES", {
+          ...toolUser,
           connected_account_id: id,
           arguments: { top: 8 },
         }) as any;
@@ -646,17 +650,20 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
         toolkitSlug === "google_drive"
       ) {
         let out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+          ...toolUser,
           connected_account_id: id,
           arguments: { page_size: 25 },
         }) as any;
         if (!out?.files?.length && !out?.items?.length) {
           out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            ...toolUser,
             connected_account_id: id,
             arguments: { pageSize: 25 },
           }) as any;
         }
         if (!out?.files?.length && !out?.items?.length) {
           out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            ...toolUser,
             connected_account_id: id,
             text: "List my 25 most recent files from Google Drive",
           }) as any;
@@ -670,13 +677,14 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
 
         for (let i = 0; i < list.length && driveParts.length < maxFilesToRead; i++) {
           const f = list[i];
-          const fileId = f?.id ?? f?.fileId;
-          const name = f?.name ?? f?.title ?? "(sans nom)";
-          const mimeType = f?.mimeType ?? f?.mime_type ?? "";
+          const fileId = f?.id ?? f?.fileId ?? f?.file_id;
+          const name = f?.name ?? f?.title ?? f?.filename ?? "(sans nom)";
+          const mimeType = f?.mimeType ?? f?.mime_type ?? f?.mimetype ?? "";
           if (!fileId) continue;
           let text: string | null = null;
           try {
             const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
+              ...toolUser,
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
@@ -720,6 +728,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
         }
       } else if (toolkitSlug === "googlesheets" || toolkitSlug === "google_sheets") {
         let searchOut = await composioExecuteTool("GOOGLESHEETS_SEARCH_SPREADSHEETS", {
+          ...toolUser,
           connected_account_id: id,
           text: "List my 25 most recent Google Sheets spreadsheets",
         }) as any;
@@ -758,6 +767,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
         toolkitSlug === "one_drive"
       ) {
         const out = await composioExecuteTool("ONE_DRIVE_ONEDRIVE_LIST_ITEMS", {
+          ...toolUser,
           connected_account_id: id,
           arguments: { top: 25 },
         }) as any;
@@ -775,6 +785,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
           if (!itemId) continue;
           try {
             const dlRes = await composioExecuteTool("ONE_DRIVE_DOWNLOAD_FILE", {
+              ...toolUser,
               connected_account_id: id,
               arguments: { item_id: itemId } as any,
             }) as any;

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useAuth } from '@clerk/clerk-react'
 import { RefreshCw } from 'lucide-react'
 
 export default function Settings() {
+  const { getToken } = useAuth()
   const [searchParams] = useSearchParams()
   const [composioState, setComposioState] = useState<{
     loading: boolean
@@ -71,8 +73,10 @@ export default function Settings() {
 
   const loadComposioConnections = useCallback(async () => {
     try {
+      const token = await getToken()
       const response = await fetch('/api/composio/connected-accounts', {
         credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
       const data = await response.json()
       if (!response.ok) {
@@ -97,14 +101,16 @@ export default function Settings() {
         error: error instanceof Error ? error.message : 'Erreur Composio.',
       }))
     }
-  }, [])
+  }, [getToken])
 
   const handleRagSync = async () => {
     setRagSync({ loading: true })
     try {
+      const token = await getToken()
       const res = await fetch('/api/rag/sync', {
         method: 'POST',
         credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Erreur sync')
@@ -122,9 +128,13 @@ export default function Settings() {
       return
     }
     try {
+      const token = await getToken()
       const response = await fetch('/api/composio/connect', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ toolkitSlug }),
         credentials: 'include',
       })

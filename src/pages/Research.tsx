@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import { ExternalLink } from "lucide-react";
 import MarkdownAnswer from "../components/MarkdownAnswer";
 import SourcesPanel from "../components/SourcesPanel";
 
 export default function Research() {
+  const { getToken } = useAuth();
   const [showSources, setShowSources] = useState(true);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -121,9 +123,13 @@ export default function Research() {
     }, 900);
 
     try {
+      const token = await getToken();
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ message: messageText }),
         credentials: "include",
       });
