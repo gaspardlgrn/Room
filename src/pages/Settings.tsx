@@ -125,7 +125,7 @@ export default function Settings() {
       if (!res.ok) throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Erreur sync')
       let msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
       if (data?.debug && data.indexed === 0) {
-        const d = data.debug
+        const d = data.debug as { driveAccounts?: number; filesListed?: number; docsExtracted?: number }
         msg += ` [Drive: ${d.driveAccounts ?? '?'}, Fichiers: ${d.filesListed ?? '?'}, Extraits: ${d.docsExtracted ?? '?'}]`
       }
       setRagSync({ loading: false, message: msg })
