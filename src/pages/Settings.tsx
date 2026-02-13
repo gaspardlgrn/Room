@@ -125,7 +125,9 @@ export default function Settings() {
       if (!res.ok) {
         const errMsg = (typeof data?.error === 'string' ? data.error : null) || 'Erreur sync'
         const detail = typeof data?.detail === 'string' ? data.detail : ''
-        throw new Error(detail ? `${errMsg}: ${detail}` : errMsg)
+        const fullMsg = detail ? `${errMsg}: ${detail}` : errMsg
+        console.error('[RAG sync]', res.status, data)
+        throw new Error(fullMsg)
       }
       let msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
       if (data?.debug && data.indexed === 0) {
