@@ -71,7 +71,9 @@ export default function Settings() {
 
   const loadComposioConnections = useCallback(async () => {
     try {
-      const response = await fetch('/api/composio/connected-accounts')
+      const response = await fetch('/api/composio/connected-accounts', {
+        credentials: 'include',
+      })
       const data = await response.json()
       if (!response.ok) {
         throw new Error(data?.error || 'Impossible de charger les connexions.')
@@ -100,7 +102,10 @@ export default function Settings() {
   const handleRagSync = async () => {
     setRagSync({ loading: true })
     try {
-      const res = await fetch('/api/rag/sync', { method: 'POST' })
+      const res = await fetch('/api/rag/sync', {
+        method: 'POST',
+        credentials: 'include',
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Erreur sync')
       setRagSync({ loading: false, message: data?.message || 'Documents indexés.' })
@@ -121,6 +126,7 @@ export default function Settings() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toolkitSlug }),
+        credentials: 'include',
       })
       const data = await response.json()
       if (!response.ok) {

@@ -160,6 +160,29 @@ function getCookieValue(cookieHeader: string | undefined, name: string) {
   return null;
 }
 
+/** Extrait l'ID utilisateur Clerk de la requête (optionnel). Utilisé pour Composio. */
+async function getComposioUserIdFromRequest(
+  req: express.Request
+): Promise<string> {
+  if (!CLERK_SECRET_KEY) return COMPOSIO_USER_ID;
+  const authHeader = req.headers.authorization || "";
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+  const cookieToken =
+    getCookieValue(req.headers.cookie, "__session") ||
+    getCookieValue(req.headers.cookie, "__clerk_session");
+  const token = bearerToken || cookieToken;
+  if (!token) return COMPOSIO_USER_ID;
+  try {
+    const payload = await verifyToken(token, { secretKey: CLERK_SECRET_KEY });
+    const userId = payload.sub;
+    return userId || COMPOSIO_USER_ID;
+  } catch {
+    return COMPOSIO_USER_ID;
+  }
+}
+
 async function requireAdmin(
   req: express.Request,
   res: express.Response,
@@ -340,16 +363,17 @@ async function exaSearch(query: string): Promise<ExaResult[]> {
 }
 
 /** Comptes connectés Composio (id + slug du toolkit) pour le user_id configuré. */
-async function getComposioConnectedAccounts(): Promise<
-  { id: string; toolkitSlug: string }[]
-> {
+async function getComposioConnectedAccounts(
+  userId?: string
+): Promise<{ id: string; toolkitSlug: string }[]> {
   if (!COMPOSIO_API_KEY) return [];
+  const uid = userId ?? COMPOSIO_USER_ID;
   const tryFetch = async (query: string) => {
     const res = await composioRequest(`/api/v3/connected_accounts?${query}`);
     if (!res.ok) return [];
     return (res.data?.items ?? []) as any[];
   };
-  let items = await tryFetch(`user_ids=${encodeURIComponent(COMPOSIO_USER_ID)}`);
+  let items = await tryFetch(`user_ids=${encodeURIComponent(uid)}`);
   if (items.length === 0) {
     items = await tryFetch("limit=50");
   }
@@ -387,32 +411,53 @@ async function getGoogleSheetContent(
 }
 
 /** Récupère les documents Drive/OneDrive pour l'indexation RAG. */
-async function getComposioDocumentsForRag(): Promise<
-  { filename: string; source: string; content: string }[]
-> {
-  const accounts = await getComposioConnectedAccounts();
+async function getComposioDocumentsForRag(
+  userId?: string
+): Promise<{ filename: string; source: string; content: string }[]> {
+  const accounts = await getComposioConnectedAccounts(userId);
   const docs: { filename: string; source: string; content: string }[] = [];
   const maxFilesPerDrive = 25;
   const maxCharsPerFile = 15000;
   const sheetsAccountIds = accounts
     .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
     .map((a) => a.id);
+  const toolUser = userId ? { user_id: userId } : {};
 
   for (const { id, toolkitSlug } of accounts) {
     try {
       if (toolkitSlug === "googledrive" || toolkitSlug === "google_drive") {
         let out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+          ...toolUser,
           connected_account_id: id,
           arguments: { page_size: 30 },
         }) as any;
         if (!out?.files?.length && !out?.items?.length) {
           out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            ...toolUser,
             connected_account_id: id,
             arguments: { pageSize: 30 },
           }) as any;
         }
-        const files = out?.files ?? out?.items ?? out?.data ?? [];
-        const list = Array.isArray(files) ? files : [];
+        let files = out?.files ?? out?.items ?? out?.data ?? [];
+        let list = Array.isArray(files) ? files : [];
+        const sheetOut = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+          ...toolUser,
+          connected_account_id: id,
+          arguments: {
+            page_size: 20,
+            q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+          },
+        }) as any;
+        const sheetFiles = sheetOut?.files ?? sheetOut?.items ?? sheetOut?.data ?? [];
+        const sheetList = Array.isArray(sheetFiles) ? sheetFiles : [];
+        const seen = new Set(list.map((f: any) => f?.id ?? f?.fileId));
+        for (const f of sheetList) {
+          const fid = f?.id ?? f?.fileId;
+          if (fid && !seen.has(fid)) {
+            seen.add(fid);
+            list = [...list, { ...f, mimeType: "application/vnd.google-apps.spreadsheet" }];
+          }
+        }
         for (let i = 0; i < list.length && docs.length < maxFilesPerDrive * 2; i++) {
           const f = list[i];
           const fileId = f?.id ?? f?.fileId;
@@ -449,12 +494,27 @@ async function getComposioDocumentsForRag(): Promise<
           }
         }
       } else if (toolkitSlug === "googlesheets" || toolkitSlug === "google_sheets") {
+        let sheetList: any[] = [];
         let searchOut = await composioExecuteTool("GOOGLESHEETS_SEARCH_SPREADSHEETS", {
           connected_account_id: id,
           text: "List my 25 most recent Google Sheets spreadsheets",
         }) as any;
-        const spreadsheets = searchOut?.files ?? searchOut?.items ?? searchOut?.data ?? [];
-        const sheetList = Array.isArray(spreadsheets) ? spreadsheets : [];
+        if (searchOut) {
+          const spreadsheets = searchOut?.files ?? searchOut?.items ?? searchOut?.data ?? [];
+          sheetList = Array.isArray(spreadsheets) ? spreadsheets : [];
+        }
+        if (sheetList.length === 0) {
+          const driveOut = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            ...toolUser,
+            connected_account_id: id,
+            arguments: {
+              page_size: 30,
+              q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
+            },
+          }) as any;
+          const files = driveOut?.files ?? driveOut?.items ?? driveOut?.data ?? [];
+          sheetList = Array.isArray(files) ? files : [];
+        }
         for (let i = 0; i < sheetList.length && docs.length < maxFilesPerDrive * 2; i++) {
           const s = sheetList[i];
           const sheetId = s?.id ?? s?.spreadsheetId ?? s?.fileId;
@@ -475,6 +535,7 @@ async function getComposioDocumentsForRag(): Promise<
         }
       } else if (toolkitSlug === "onedrive" || toolkitSlug === "one_drive") {
         const out = await composioExecuteTool("ONE_DRIVE_ONEDRIVE_LIST_ITEMS", {
+          ...toolUser,
           connected_account_id: id,
           arguments: { top: 30 },
         }) as any;
@@ -538,8 +599,8 @@ async function composioExecuteTool(
 }
 
 /** Récupère un résumé des emails et documents via les comptes Composio connectés (Gmail, Outlook, Drive). */
-async function getComposioDataForContext(): Promise<string> {
-  const accounts = await getComposioConnectedAccounts();
+async function getComposioDataForContext(userId?: string): Promise<string> {
+  const accounts = await getComposioConnectedAccounts(userId);
   if (accounts.length === 0) return "";
 
   const parts: string[] = [];
@@ -760,8 +821,8 @@ async function getComposioDataForContext(): Promise<string> {
   );
 }
 
-async function getComposioContext(): Promise<string> {
-  const accounts = await getComposioConnectedAccounts();
+async function getComposioContext(userId?: string): Promise<string> {
+  const accounts = await getComposioConnectedAccounts(userId);
   if (accounts.length === 0) {
     return COMPOSIO_API_KEY ? "Aucun toolkit Composio connecté." : "";
   }
@@ -988,12 +1049,13 @@ app.post("/api/chat", async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
     }
 
+    const composioUserId = await getComposioUserIdFromRequest(req);
     const intent = await classifyIntent(message.trim());
     const apiKey = process.env.OPENAI_API_KEY;
     const [exaResults, composioContext, composioData, ragChunks] = await Promise.all([
       exaSearch(message.trim()),
-      getComposioContext(),
-      getComposioDataForContext(),
+      getComposioContext(composioUserId),
+      getComposioDataForContext(composioUserId),
       apiKey ? searchDocuments(message.trim(), apiKey, 6) : Promise.resolve([]),
     ]);
     if (composioContext && !composioData && ragChunks.length === 0) {
@@ -1138,9 +1200,10 @@ app.get("/api/composio/toolkits", async (req, res) => {
   return res.json(result.data);
 });
 
-app.get("/api/composio/connected-accounts", async (_req, res) => {
+app.get("/api/composio/connected-accounts", async (req, res) => {
+  const userId = await getComposioUserIdFromRequest(req);
   const params = new URLSearchParams();
-  params.set("user_ids", COMPOSIO_USER_ID);
+  params.set("user_ids", userId);
   const result = await composioRequest(
     `/api/v3/connected_accounts?${params.toString()}`
   );
@@ -1155,6 +1218,7 @@ app.post("/api/composio/connect", async (req, res) => {
   if (!toolkitSlug) {
     return res.status(400).json({ error: "toolkitSlug requis." });
   }
+  const userId = await getComposioUserIdFromRequest(req);
 
   const authConfigs = await composioRequest(
     `/api/v3/auth_configs?toolkit_slug=${encodeURIComponent(
@@ -1197,7 +1261,7 @@ app.post("/api/composio/connect", async (req, res) => {
     method: "POST",
     body: JSON.stringify({
       auth_config_id: authConfigId,
-      user_id: COMPOSIO_USER_ID,
+      user_id: userId,
       callback_url: callbackUrl,
     }),
   });
@@ -1207,7 +1271,7 @@ app.post("/api/composio/connect", async (req, res) => {
   return res.json({ redirect_url: link.data?.redirect_url });
 });
 
-app.post("/api/rag/sync", async (_req, res) => {
+app.post("/api/rag/sync", async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
   const pineconeKey = process.env.PINECONE_API_KEY;
   if (!apiKey) {
@@ -1219,13 +1283,22 @@ app.post("/api/rag/sync", async (_req, res) => {
     });
   }
   try {
-    const docs = await getComposioDocumentsForRag();
+    const userId = await getComposioUserIdFromRequest(req);
+    const accounts = await getComposioConnectedAccounts(userId);
+    const driveOrSheets = accounts.some(
+      (a) =>
+        /googledrive|google_drive|googlesheets|google_sheets|onedrive|one_drive/.test(a.toolkitSlug)
+    );
+    const docs = await getComposioDocumentsForRag(userId);
     if (docs.length === 0) {
+      const hint = driveOrSheets
+        ? " Comptes connectés mais aucun document récupéré — assure-toi d'être connecté avec le même compte que lors de la connexion des applications."
+        : " Connecte Google Drive, Google Sheets ou OneDrive dans Paramètres > Composio.";
       return res.json({
         ok: true,
         indexed: 0,
         chunks: 0,
-        message: "Aucun document Drive/OneDrive à indexer. Connecte Google Drive ou OneDrive dans Paramètres.",
+        message: `Aucun document à indexer.${hint}`,
       });
     }
     const { indexed, chunks } = await indexDocuments(docs, apiKey);

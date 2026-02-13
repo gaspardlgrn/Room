@@ -51,6 +51,8 @@ COMPOSIO_BASE_URL=https://backend.composio.dev
 COMPOSIO_USER_ID=room-local
 ```
 
+**COMPOSIO_USER_ID** : pas besoin de le configurer manuellement si tu utilises Clerk. Quand tu es connecté, ton **user_id Clerk** est automatiquement utilisé pour lier tes comptes (Drive, Gmail, etc.). `room-local` sert uniquement de fallback (ex. sans session ou mode partagé).
+
 ### 6. Lancer l'application
 
 **Option 1 : Frontend + Backend simultanément (recommandé)**
