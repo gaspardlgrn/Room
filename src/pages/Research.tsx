@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink } from "lucide-react";
 import MarkdownAnswer from "../components/MarkdownAnswer";
+import SourcesPanel from "../components/SourcesPanel";
 
 export default function Research() {
   const [showSources, setShowSources] = useState(true);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  const [showAllSources, setShowAllSources] = useState(false);
   const storageKey = "chat:research";
   const endRef = useRef<HTMLDivElement | null>(null);
   const [thinkingSteps, setThinkingSteps] = useState<{
@@ -29,15 +28,6 @@ export default function Research() {
       }>;
     }>
   >([]);
-
-  const getHost = (url?: string) => {
-    if (!url) return "Domaine inconnu";
-    try {
-      return new URL(url).hostname;
-    } catch {
-      return url;
-    }
-  };
 
   useEffect(() => {
     try {
@@ -300,124 +290,16 @@ export default function Research() {
       </div>
 
       {showSources ? (
-        <aside className="fixed right-0 top-0 z-30 hidden h-screen w-[320px] border-l-2 border-gray-200 bg-white px-4 pt-5 lg:flex lg:flex-col">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-              Sources
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
-                {(messages
-                  .slice()
-                  .reverse()
-                  .find((item) => item.role === "assistant" && item.sources?.length)
-                  ?.sources?.length ?? 0) || 0}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSources(false)}
-              className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500"
-              aria-label="Fermer la colonne sources"
-            >
-              ×
-            </button>
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowSources(false)}
-            className="sr-only"
-            aria-label="Fermer la colonne sources"
-          >
-            ×
-          </button>
-          <div className="mt-4 space-y-4 overflow-y-auto pr-1">
-            {(() => {
-              const list =
-                messages
-                  .slice()
-                  .reverse()
-                  .find((item) => item.role === "assistant" && item.sources?.length)
-                  ?.sources || [];
-              const visible = showAllSources ? list : list.slice(0, 4);
-              return visible.map((source, index) => (
-              <div
-                key={`${source.url || source.title || index}`}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-xs text-gray-600 shadow-sm"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-semibold text-emerald-700">
-                    {index + 1}
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-white text-sm font-semibold text-gray-700">
-                        {(source.title || source.url || "S").charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">
-                          {source.title || "Source"}
-                        </div>
-                        <div className="text-[11px] text-gray-500">
-                          {getHost(source.url)}
-                        </div>
-                      </div>
-                    </div>
-                    {source.excerpt ? (
-                      <p className="mt-2 text-[11px] text-gray-600">
-                        {source.excerpt}
-                      </p>
-                    ) : null}
-                    <div className="mt-3 text-[11px] font-semibold text-gray-500">
-                      Overview
-                    </div>
-                    <div className="mt-1 grid grid-cols-2 gap-2 text-[11px] text-gray-600">
-                      <div>
-                        <div className="text-gray-400">Name</div>
-                        <div className="font-semibold text-gray-700">
-                          {source.title || "Source"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-gray-400">Published</div>
-                        <div className="font-semibold text-gray-700">
-                          {source.publishedDate || "N/A"}
-                        </div>
-                      </div>
-                    </div>
-                    {source.url ? (
-                      <a
-                        href={source.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800"
-                      >
-                        Ouvrir
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-              ));
-            })()}
-            {(() => {
-              const total =
-                messages
-                  .slice()
-                  .reverse()
-                  .find((item) => item.role === "assistant" && item.sources?.length)
-                  ?.sources?.length || 0;
-              if (total <= 4) return null;
-              return (
-                <button
-                  type="button"
-                  onClick={() => setShowAllSources((prev) => !prev)}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-                >
-                  {showAllSources ? "Voir moins" : "Voir plus"}
-                </button>
-              );
-            })()}
-          </div>
-        </aside>
+        <SourcesPanel
+          sources={
+            messages
+              .slice()
+              .reverse()
+              .find((item) => item.role === "assistant" && item.sources?.length)
+              ?.sources ?? []
+          }
+          onClose={() => setShowSources(false)}
+        />
       ) : null}
 
       <div className="fixed bottom-6 left-0 right-0 z-10 px-3 lg:left-[var(--sidebar-width)] lg:right-[360px]">
