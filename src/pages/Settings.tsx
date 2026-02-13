@@ -3,6 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { RefreshCw } from 'lucide-react'
 
+async function parseJsonResponse(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text()
+  try {
+    return (text ? JSON.parse(text) : {}) as Record<string, unknown>
+  } catch {
+    return { error: text || 'Erreur serveur' }
+  }
+}
+
 export default function Settings() {
   const { getToken } = useAuth()
   const [searchParams] = useSearchParams()
@@ -53,9 +62,9 @@ export default function Settings() {
         params.set('search', query)
       }
       const response = await fetch(`/api/composio/toolkits?${params.toString()}`)
-      const data = await response.json()
+      const data = await parseJsonResponse(response)
       if (!response.ok) {
-        throw new Error(data?.error || 'Impossible de charger les applications.')
+        throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Impossible de charger les applications.')
       }
       setComposioState((prev) => ({
         ...prev,
@@ -78,9 +87,9 @@ export default function Settings() {
         credentials: 'include',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
-      const data = await response.json()
+      const data = await parseJsonResponse(response)
       if (!response.ok) {
-        throw new Error(data?.error || 'Impossible de charger les connexions.')
+        throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Impossible de charger les connexions.')
       }
       const items = Array.isArray(data?.items) ? data.items : []
       const connected = new Set<string>()
@@ -112,9 +121,10 @@ export default function Settings() {
         credentials: 'include',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.error || 'Erreur sync')
-      setRagSync({ loading: false, message: data?.message || 'Documents indexés.' })
+      const data = await parseJsonResponse(res)
+      if (!res.ok) throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Erreur sync')
+      const msg = typeof data?.message === 'string' ? data.message : 'Documents indexés.'
+      setRagSync({ loading: false, message: msg })
     } catch (e) {
       setRagSync({
         loading: false,
@@ -138,11 +148,11 @@ export default function Settings() {
         body: JSON.stringify({ toolkitSlug }),
         credentials: 'include',
       })
-      const data = await response.json()
+      const data = await parseJsonResponse(response)
       if (!response.ok) {
-        throw new Error(data?.error || 'Connexion impossible.')
+        throw new Error((typeof data?.error === 'string' ? data.error : null) || 'Connexion impossible.')
       }
-      if (data?.redirect_url) {
+      if (data?.redirect_url && typeof data.redirect_url === 'string') {
         window.location.assign(data.redirect_url)
       }
     } catch (error) {
