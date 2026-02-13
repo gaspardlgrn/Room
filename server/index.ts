@@ -391,9 +391,11 @@ async function getComposioConnectedAccounts(
 async function getGoogleSheetContent(
   spreadsheetId: string,
   sheetsAccountId: string,
-  maxChars = 15000
+  maxChars = 15000,
+  userId?: string
 ): Promise<string | null> {
   const res = await composioExecuteTool("GOOGLESHEETS_BATCH_GET", {
+    ...(userId ? { user_id: userId } : {}),
     connected_account_id: sheetsAccountId,
     arguments: {
       spreadsheet_id: spreadsheetId,
@@ -423,6 +425,7 @@ async function getComposioDocumentsForRag(
     .map((a) => a.id);
   const toolUser = userId ? { user_id: userId } : {};
 
+  logger.info({ userId, accountCount: accounts.length, slugs: accounts.map((a) => a.toolkitSlug) }, "[RAG] Fetching docs for accounts");
   for (const { id, toolkitSlug } of accounts) {
     try {
       if (toolkitSlug === "googledrive" || toolkitSlug === "google_drive") {
@@ -438,8 +441,18 @@ async function getComposioDocumentsForRag(
             arguments: { pageSize: 30 },
           }) as any;
         }
-        let files = out?.files ?? out?.items ?? out?.data ?? [];
+        if (!out?.files?.length && !out?.items?.length) {
+          out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            ...toolUser,
+            connected_account_id: id,
+            text: "List my 30 most recent files from Google Drive",
+          }) as any;
+        }
+        let files = out?.files ?? out?.items ?? out?.data ?? out?.value ?? [];
         let list = Array.isArray(files) ? files : [];
+        if (list.length === 0 && out) {
+          logger.warn({ outKeys: Object.keys(out), sample: JSON.stringify(out).slice(0, 300) }, "[RAG] Drive LIST_FILES returned empty list, check response format");
+        }
         const sheetOut = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
           ...toolUser,
           connected_account_id: id,
@@ -448,7 +461,7 @@ async function getComposioDocumentsForRag(
             q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
           },
         }) as any;
-        const sheetFiles = sheetOut?.files ?? sheetOut?.items ?? sheetOut?.data ?? [];
+        const sheetFiles = sheetOut?.files ?? sheetOut?.items ?? sheetOut?.data ?? sheetOut?.value ?? [];
         const sheetList = Array.isArray(sheetFiles) ? sheetFiles : [];
         const seen = new Set(list.map((f: any) => f?.id ?? f?.fileId));
         for (const f of sheetList) {
@@ -467,6 +480,7 @@ async function getComposioDocumentsForRag(
           let text: string | null = null;
           try {
             const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
+              ...toolUser,
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
@@ -480,7 +494,7 @@ async function getComposioDocumentsForRag(
           }
           if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
             try {
-              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile);
+              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, userId);
             } catch {
               // Ignorer
             }
@@ -496,6 +510,7 @@ async function getComposioDocumentsForRag(
       } else if (toolkitSlug === "googlesheets" || toolkitSlug === "google_sheets") {
         let sheetList: any[] = [];
         let searchOut = await composioExecuteTool("GOOGLESHEETS_SEARCH_SPREADSHEETS", {
+          ...toolUser,
           connected_account_id: id,
           text: "List my 25 most recent Google Sheets spreadsheets",
         }) as any;
@@ -512,7 +527,7 @@ async function getComposioDocumentsForRag(
               q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
             },
           }) as any;
-          const files = driveOut?.files ?? driveOut?.items ?? driveOut?.data ?? [];
+          const files = driveOut?.files ?? driveOut?.items ?? driveOut?.data ?? driveOut?.value ?? [];
           sheetList = Array.isArray(files) ? files : [];
         }
         for (let i = 0; i < sheetList.length && docs.length < maxFilesPerDrive * 2; i++) {
@@ -521,7 +536,7 @@ async function getComposioDocumentsForRag(
           const name = s?.name ?? s?.title ?? "(sans nom)";
           if (!sheetId) continue;
           try {
-            const text = await getGoogleSheetContent(sheetId, id, maxCharsPerFile);
+            const text = await getGoogleSheetContent(sheetId, id, maxCharsPerFile, userId);
             if (text && text.length > 0) {
               docs.push({
                 filename: String(name).slice(0, 200),
@@ -594,7 +609,10 @@ async function composioExecuteTool(
       ...(body.text && { text: body.text }),
     }),
   });
-  if (!res.ok) return undefined;
+  if (!res.ok) {
+    logger.warn({ toolSlug, error: res.error, status: res.status }, "[Composio] Tool execution failed");
+    return undefined;
+  }
   const raw = res.data;
   return raw?.data ?? raw?.output ?? raw?.result ?? raw;
 }
@@ -698,7 +716,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
           }
           if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
             try {
-              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile);
+              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, userId);
             } catch {
               // Ignorer
             }
@@ -744,7 +762,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
           const name = s?.name ?? s?.title ?? "(sans nom)";
           if (!sheetId) continue;
           try {
-            const text = await getGoogleSheetContent(sheetId, id, maxCharsPerSheet);
+            const text = await getGoogleSheetContent(sheetId, id, maxCharsPerSheet, userId);
             if (text && text.length > 0) {
               sheetParts.push(`[Google Sheet: ${String(name).slice(0, 80)}]\n${text.slice(0, maxCharsPerSheet)}`);
             }
@@ -1303,13 +1321,14 @@ app.post("/api/rag/sync", async (req, res) => {
     const docs = await getComposioDocumentsForRag(userId);
     if (docs.length === 0) {
       const hint = driveOrSheets
-        ? " Comptes connectés mais aucun document récupéré — assure-toi d'être connecté avec le même compte que lors de la connexion des applications."
+        ? " Comptes connectés mais aucun document récupéré. Vérifie les logs Vercel (Runtime Logs) pour plus de détails."
         : " Connecte Google Drive, Google Sheets ou OneDrive dans Paramètres > Composio.";
       return res.json({
         ok: true,
         indexed: 0,
         chunks: 0,
         message: `Aucun document à indexer.${hint}`,
+        debug: process.env.NODE_ENV !== "production" ? { userId, accountSlugs: accounts.map((a) => a.toolkitSlug) } : undefined,
       });
     }
     const { indexed, chunks } = await indexDocuments(docs, apiKey);
