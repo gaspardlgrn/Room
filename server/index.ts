@@ -363,6 +363,29 @@ async function getComposioConnectedAccounts(): Promise<
     .filter(Boolean) as { id: string; toolkitSlug: string }[];
 }
 
+/** Récupère le contenu d'un Google Sheet via l'API Sheets (spreadsheetId = fileId Drive). */
+async function getGoogleSheetContent(
+  spreadsheetId: string,
+  sheetsAccountId: string,
+  maxChars = 15000
+): Promise<string | null> {
+  const res = await composioExecuteTool("GOOGLESHEETS_BATCH_GET", {
+    connected_account_id: sheetsAccountId,
+    arguments: {
+      spreadsheet_id: spreadsheetId,
+    },
+  }) as any;
+  const valueRanges = res?.valueRanges ?? res?.data?.valueRanges ?? [];
+  const vr = Array.isArray(valueRanges) ? valueRanges[0] : valueRanges;
+  const rows = vr?.values ?? vr ?? [];
+  const allRows = Array.isArray(rows) ? rows : [];
+  const lines = allRows.map((row: unknown) =>
+    Array.isArray(row) ? row.map(String).join("\t") : String(row)
+  );
+  const text = lines.join("\n").trim();
+  return text.length > 0 ? text.slice(0, maxChars) : null;
+}
+
 /** Récupère les documents Drive/OneDrive pour l'indexation RAG. */
 async function getComposioDocumentsForRag(): Promise<
   { filename: string; source: string; content: string }[]
@@ -371,6 +394,9 @@ async function getComposioDocumentsForRag(): Promise<
   const docs: { filename: string; source: string; content: string }[] = [];
   const maxFilesPerDrive = 25;
   const maxCharsPerFile = 15000;
+  const sheetsAccountIds = accounts
+    .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
+    .map((a) => a.id);
 
   for (const { id, toolkitSlug } of accounts) {
     try {
@@ -391,21 +417,55 @@ async function getComposioDocumentsForRag(): Promise<
           const f = list[i];
           const fileId = f?.id ?? f?.fileId;
           const name = f?.name ?? f?.title ?? "(sans nom)";
+          const mimeType = f?.mimeType ?? f?.mime_type ?? "";
           if (!fileId) continue;
+          let text: string | null = null;
           try {
             const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
-            const text =
+            text =
               parseRes?.text ??
               parseRes?.content ??
               (typeof parseRes?.data === "string" ? parseRes.data : null) ??
               parseRes?.exportedContent;
-            if (text && typeof text === "string" && text.length > 0) {
+          } catch {
+            // Fichier non parseable (ex: Google Sheet natif)
+          }
+          if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
+            try {
+              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile);
+            } catch {
+              // Ignorer
+            }
+          }
+          if (text && typeof text === "string" && text.length > 0) {
+            docs.push({
+              filename: String(name).slice(0, 200),
+              source: "Google Drive",
+              content: text.slice(0, maxCharsPerFile),
+            });
+          }
+        }
+      } else if (toolkitSlug === "googlesheets" || toolkitSlug === "google_sheets") {
+        let searchOut = await composioExecuteTool("GOOGLESHEETS_SEARCH_SPREADSHEETS", {
+          connected_account_id: id,
+          text: "List my 25 most recent Google Sheets spreadsheets",
+        }) as any;
+        const spreadsheets = searchOut?.files ?? searchOut?.items ?? searchOut?.data ?? [];
+        const sheetList = Array.isArray(spreadsheets) ? spreadsheets : [];
+        for (let i = 0; i < sheetList.length && docs.length < maxFilesPerDrive * 2; i++) {
+          const s = sheetList[i];
+          const sheetId = s?.id ?? s?.spreadsheetId ?? s?.fileId;
+          const name = s?.name ?? s?.title ?? "(sans nom)";
+          if (!sheetId) continue;
+          try {
+            const text = await getGoogleSheetContent(sheetId, id, maxCharsPerFile);
+            if (text && text.length > 0) {
               docs.push({
                 filename: String(name).slice(0, 200),
-                source: "Google Drive",
+                source: "Google Sheets",
                 content: text.slice(0, maxCharsPerFile),
               });
             }
@@ -484,6 +544,9 @@ async function getComposioDataForContext(): Promise<string> {
 
   const parts: string[] = [];
   const maxSnippetLen = 400;
+  const sheetsAccountIds = accounts
+    .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
+    .map((a) => a.id);
 
   for (const { id, toolkitSlug } of accounts) {
     try {
@@ -548,23 +611,32 @@ async function getComposioDataForContext(): Promise<string> {
           const f = list[i];
           const fileId = f?.id ?? f?.fileId;
           const name = f?.name ?? f?.title ?? "(sans nom)";
+          const mimeType = f?.mimeType ?? f?.mime_type ?? "";
           if (!fileId) continue;
+          let text: string | null = null;
           try {
             const parseRes = await composioExecuteTool("GOOGLEDRIVE_PARSE_FILE", {
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
-            const text =
+            text =
               parseRes?.text ??
               parseRes?.content ??
               (typeof parseRes?.data === "string" ? parseRes.data : null) ??
               parseRes?.exportedContent;
-            if (text && typeof text === "string" && text.length > 0) {
-              const excerpt = text.slice(0, maxCharsPerFile);
-              driveParts.push(`[Document: ${String(name).slice(0, 80)}]\n${excerpt}`);
-            }
           } catch {
-            // Ignorer les fichiers non lisibles (binaires, permissions, etc.)
+            // Fichier non parseable (ex: Google Sheet natif)
+          }
+          if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
+            try {
+              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile);
+            } catch {
+              // Ignorer
+            }
+          }
+          if (text && typeof text === "string" && text.length > 0) {
+            const excerpt = text.slice(0, maxCharsPerFile);
+            driveParts.push(`[Document: ${String(name).slice(0, 80)}]\n${excerpt}`);
           }
         }
 
@@ -584,6 +656,41 @@ async function getComposioDataForContext(): Promise<string> {
             return `${idx + 1}. ${String(n).slice(0, 100)}`;
           });
           parts.push("Fichiers Google Drive (récents, sans contenu extrait):\n" + lines.join("\n"));
+        }
+      } else if (toolkitSlug === "googlesheets" || toolkitSlug === "google_sheets") {
+        let searchOut = await composioExecuteTool("GOOGLESHEETS_SEARCH_SPREADSHEETS", {
+          connected_account_id: id,
+          text: "List my 25 most recent Google Sheets spreadsheets",
+        }) as any;
+        const spreadsheets = searchOut?.files ?? searchOut?.items ?? searchOut?.data ?? [];
+        const sheetList = Array.isArray(spreadsheets) ? spreadsheets : [];
+        const sheetParts: string[] = [];
+        const maxSheetsToRead = 10;
+        const maxCharsPerSheet = 6000;
+        const maxTotalSheetChars = 25000;
+        for (let i = 0; i < sheetList.length && sheetParts.length < maxSheetsToRead; i++) {
+          const s = sheetList[i];
+          const sheetId = s?.id ?? s?.spreadsheetId ?? s?.fileId;
+          const name = s?.name ?? s?.title ?? "(sans nom)";
+          if (!sheetId) continue;
+          try {
+            const text = await getGoogleSheetContent(sheetId, id, maxCharsPerSheet);
+            if (text && text.length > 0) {
+              sheetParts.push(`[Google Sheet: ${String(name).slice(0, 80)}]\n${text.slice(0, maxCharsPerSheet)}`);
+            }
+          } catch {
+            // Ignorer
+          }
+        }
+        let sheetTotalLen = 0;
+        const sheetIncluded: string[] = [];
+        for (const block of sheetParts) {
+          if (sheetTotalLen + block.length > maxTotalSheetChars) break;
+          sheetIncluded.push(block);
+          sheetTotalLen += block.length;
+        }
+        if (sheetIncluded.length > 0) {
+          parts.push("Google Sheets (contenu consultable):\n" + sheetIncluded.join("\n\n---\n\n"));
         }
       } else if (
         toolkitSlug === "onedrive" ||
@@ -648,7 +755,7 @@ async function getComposioDataForContext(): Promise<string> {
 
   if (parts.length === 0) return "";
   return (
-    "IMPORTANT: Les données suivantes ont été récupérées depuis les comptes Connectés de l'utilisateur (Gmail, Google Drive, Outlook, OneDrive). Elles sont DÉJÀ INCLUSES dans ce message. Tu as accès à ces données et tu DOIS les utiliser pour répondre. Ne dis JAMAIS que tu n'as pas accès au Drive, aux emails ou aux documents — ils sont ci-dessous.\n\n" +
+    "IMPORTANT: Les données suivantes ont été récupérées depuis les comptes Connectés de l'utilisateur (Gmail, Google Drive, Google Sheets, Outlook, OneDrive). Elles sont DÉJÀ INCLUSES dans ce message. Tu as accès DIRECT au contenu des fichiers (y compris Google Sheets). Utilise ces données pour répondre. Ne dis JAMAIS que tu n'as pas accès aux documents — leur contenu est ci-dessous.\n\n" +
     parts.join("\n\n")
   );
 }
