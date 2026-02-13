@@ -486,14 +486,14 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
     res?.data?.file_url ??
     res?.data?.url ??
     res?.data?.downloaded_file_content?.s3url;
-  if (typeof url === "string" && url.startsWith("http")) {
+  if (typeof url === "string" && url.startsWith("http") && url.length < 2000) {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 15000);
-      const r = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(t);
-      const txt = await r.text();
-      if (txt && txt.length > 0) return txt.trim().slice(0, 15000);
+      const fetchPromise = fetch(url).then((r) => r.text());
+      const timeoutPromise = new Promise<string>((_, rej) =>
+        setTimeout(() => rej(new Error("timeout")), 12000)
+      );
+      const txt = await Promise.race([fetchPromise, timeoutPromise]);
+      if (txt && typeof txt === "string" && txt.length > 0) return txt.trim().slice(0, 15000);
     } catch {
       // Ignorer (timeout, réseau, etc.)
     }
@@ -1327,6 +1327,10 @@ app.post("/api/composio/connect", async (req, res) => {
   return res.json({ redirect_url: link.data?.redirect_url });
 });
 
+app.get("/api/rag/sync", (_req, res) => {
+  res.status(405).json({ error: "Méthode non autorisée. Utilise POST pour synchroniser." });
+});
+
 app.post("/api/rag/sync", async (req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
   const pineconeKey = process.env.PINECONE_API_KEY;
@@ -1344,7 +1348,17 @@ app.post("/api/rag/sync", async (req, res) => {
     const hasDrive = accounts.some(
       (a) => a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
     );
-    const { docs, debug } = await getComposioDocumentsForRag(userId);
+    let docs: { filename: string; source: string; content: string }[];
+    let debug: { driveAccounts: number; filesListed: number; docsExtracted: number; parseSample?: string; dlSample?: string };
+    try {
+      const result = await getComposioDocumentsForRag(userId);
+      docs = result.docs;
+      debug = result.debug;
+    } catch (ragErr) {
+      logger.error({ err: ragErr }, "[RAG] getComposioDocumentsForRag failed");
+      docs = [];
+      debug = { driveAccounts: 0, filesListed: 0, docsExtracted: 0 };
+    }
     if (docs.length === 0) {
       const hint = hasDrive
         ? " Comptes connectés mais aucun document récupéré."
