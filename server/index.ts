@@ -33,7 +33,7 @@ const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
 const EXA_API_KEY = process.env.EXA_API_KEY || "";
 const EXA_NUM_RESULTS = Math.min(
   100,
-  Math.max(1, Number(process.env.EXA_NUM_RESULTS || 100))
+  Math.max(1, Number(process.env.EXA_NUM_RESULTS || 10))
 );
 const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY || "";
 const ADMIN_INVITE_ROLE =
@@ -343,11 +343,15 @@ async function getComposioConnectedAccounts(): Promise<
   { id: string; toolkitSlug: string }[]
 > {
   if (!COMPOSIO_API_KEY) return [];
-  const connected = await composioRequest(
-    `/api/v3/connected_accounts?user_id=${encodeURIComponent(COMPOSIO_USER_ID)}`
-  );
-  if (!connected.ok) return [];
-  const items = connected.data?.items ?? [];
+  const tryFetch = async (query: string) => {
+    const res = await composioRequest(`/api/v3/connected_accounts?${query}`);
+    if (!res.ok) return [];
+    return (res.data?.items ?? []) as any[];
+  };
+  let items = await tryFetch(`user_ids=${encodeURIComponent(COMPOSIO_USER_ID)}`);
+  if (items.length === 0) {
+    items = await tryFetch("limit=50");
+  }
   return items
     .map((item: any) => {
       const id = item?.id ?? item?.connected_account_id;
@@ -380,7 +384,8 @@ async function composioExecuteTool(
     }),
   });
   if (!res.ok) return undefined;
-  return res.data?.data ?? res.data;
+  const raw = res.data;
+  return raw?.data ?? raw?.output ?? raw?.result ?? raw;
 }
 
 /** Récupère un résumé des emails et documents via les comptes Composio connectés (Gmail, Outlook, Drive). */
@@ -427,10 +432,22 @@ async function getComposioDataForContext(): Promise<string> {
         toolkitSlug === "googledrive" ||
         toolkitSlug === "google_drive"
       ) {
-        const out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+        let out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
           connected_account_id: id,
           arguments: { page_size: 25 },
         }) as any;
+        if (!out?.files?.length && !out?.items?.length) {
+          out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            connected_account_id: id,
+            arguments: { pageSize: 25 },
+          }) as any;
+        }
+        if (!out?.files?.length && !out?.items?.length) {
+          out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+            connected_account_id: id,
+            text: "List my 25 most recent files from Google Drive",
+          }) as any;
+        }
         const files = out?.files ?? out?.items ?? out?.data ?? [];
         const list = Array.isArray(files) ? files : [];
         const driveParts: string[] = [];
@@ -825,7 +842,9 @@ app.post("/api/chat", async (req, res) => {
           ? [
               {
                 role: "system" as const,
-                content: `Comptes Composio connectés: ${composioContext}. Les données utilisateur (emails, documents) sont injectées dans le message suivant si récupérées.`,
+                content: composioData
+                  ? `Comptes Composio connectés: ${composioContext}. Les données ci-dessous proviennent de ces comptes.`
+                  : `Comptes Composio connectés: ${composioContext}. Aucune donnée n'a pu être récupérée — si l'utilisateur demande des documents/emails/Drive, dis que la connexion doit être vérifiée dans Paramètres > Composio, et que COMPOSIO_USER_ID doit correspondre à l'utilisateur ayant connecté les comptes.`,
               },
             ]
           : []),
@@ -903,7 +922,7 @@ app.get("/api/composio/toolkits", async (req, res) => {
 
 app.get("/api/composio/connected-accounts", async (_req, res) => {
   const params = new URLSearchParams();
-  params.set("user_id", COMPOSIO_USER_ID);
+  params.set("user_ids", COMPOSIO_USER_ID);
   const result = await composioRequest(
     `/api/v3/connected_accounts?${params.toString()}`
   );
