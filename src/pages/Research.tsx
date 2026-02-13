@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import MarkdownAnswer from "../components/MarkdownAnswer";
 import SourcesPanel from "../components/SourcesPanel";
 

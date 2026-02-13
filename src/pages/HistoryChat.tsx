@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { ExternalLink } from 'lucide-react'
 import MarkdownAnswer from '../components/MarkdownAnswer'
 import SourcesPanel from '../components/SourcesPanel'
 
