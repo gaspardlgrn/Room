@@ -421,6 +421,23 @@ async function getGoogleSheetContent(
   return text.length > 0 ? text.slice(0, maxChars) : null;
 }
 
+/** Stringify sécurisé (évite les refs circulaires). */
+function safeStringify(obj: any, maxLen = 600): string {
+  try {
+    const seen = new WeakSet();
+    const str = JSON.stringify(obj, (_, v) => {
+      if (typeof v === "object" && v !== null) {
+        if (seen.has(v)) return "[Circular]";
+        seen.add(v);
+      }
+      return v;
+    });
+    return (str ?? "null").slice(0, maxLen);
+  } catch {
+    return "null";
+  }
+}
+
 /** Cherche récursivement une chaîne de contenu dans un objet (fallback). */
 function findLongString(obj: any, minLen = 200): string | null {
   if (!obj) return null;
@@ -471,11 +488,14 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
     res?.data?.downloaded_file_content?.s3url;
   if (typeof url === "string" && url.startsWith("http")) {
     try {
-      const r = await fetch(url);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      const r = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(t);
       const txt = await r.text();
-      if (txt && txt.length > 0) return txt.trim();
+      if (txt && txt.length > 0) return txt.trim().slice(0, 15000);
     } catch {
-      // Ignorer
+      // Ignorer (timeout, réseau, etc.)
     }
   }
   const found = findLongString(res);
@@ -535,7 +555,7 @@ async function getComposioDocumentsForRag(
             }) as any;
             text = await extractFileContentFromResponse(parseRes);
             if (!text && !parseSample) {
-              parseSample = JSON.stringify(parseRes)?.slice(0, 600) ?? "null";
+              parseSample = safeStringify(parseRes);
             }
           } catch {
             // Ignorer
@@ -549,7 +569,7 @@ async function getComposioDocumentsForRag(
               }) as any;
               text = await extractFileContentFromResponse(dlRes);
               if (!text && !dlSample) {
-                dlSample = JSON.stringify(dlRes)?.slice(0, 600) ?? "null";
+                dlSample = safeStringify(dlRes);
               }
             } catch {
               // Ignorer
@@ -1345,9 +1365,11 @@ app.post("/api/rag/sync", async (req, res) => {
       message: `${indexed} document(s) indexé(s), ${chunks} chunk(s) dans Pinecone.`,
     });
   } catch (err) {
-    console.error("[RAG] Erreur sync:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error({ err, message: msg }, "[RAG] Erreur sync");
     return res.status(500).json({
       error: "Erreur lors de l'indexation des documents.",
+      ...(process.env.NODE_ENV !== "production" && { detail: msg }),
     });
   }
 });
