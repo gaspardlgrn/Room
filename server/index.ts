@@ -1102,8 +1102,14 @@ app.post("/api/composio/connect", async (req, res) => {
 
 app.post("/api/rag/sync", async (_req, res) => {
   const apiKey = process.env.OPENAI_API_KEY;
+  const pineconeKey = process.env.PINECONE_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
+  }
+  if (!pineconeKey) {
+    return res.status(500).json({
+      error: "PINECONE_API_KEY manquante. Crée un index Pinecone (dimension 1536) et ajoute la clé dans les variables d'environnement.",
+    });
   }
   try {
     const docs = await getComposioDocumentsForRag();
@@ -1120,7 +1126,7 @@ app.post("/api/rag/sync", async (_req, res) => {
       ok: true,
       indexed,
       chunks,
-      message: `${indexed} document(s) indexé(s), ${chunks} chunk(s) dans la base vectorielle.`,
+      message: `${indexed} document(s) indexé(s), ${chunks} chunk(s) dans Pinecone.`,
     });
   } catch (err) {
     console.error("[RAG] Erreur sync:", err);
