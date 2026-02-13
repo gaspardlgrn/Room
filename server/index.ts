@@ -363,11 +363,12 @@ async function exaSearch(query: string): Promise<ExaResult[]> {
   }
 }
 
-/** Comptes connectés Composio (id + slug du toolkit) pour le user_id configuré. */
+/** Comptes connectés Composio (id + slug du toolkit) pour le user_id configuré.
+ * Retourne aussi effectiveUserId: le user_id à utiliser pour les appels execute (peut différer si fallback limit=50). */
 async function getComposioConnectedAccounts(
   userId?: string
-): Promise<{ id: string; toolkitSlug: string }[]> {
-  if (!COMPOSIO_API_KEY) return [];
+): Promise<[{ id: string; toolkitSlug: string }[], string]> {
+  if (!COMPOSIO_API_KEY) return [[], COMPOSIO_USER_ID];
   const uid = userId ?? COMPOSIO_USER_ID;
   const tryFetch = async (query: string) => {
     const res = await composioRequest(`/api/v3/connected_accounts?${query}`);
@@ -375,10 +376,16 @@ async function getComposioConnectedAccounts(
     return (res.data?.items ?? []) as any[];
   };
   let items = await tryFetch(`user_ids=${encodeURIComponent(uid)}`);
+  let effectiveUserId = uid;
   if (items.length === 0) {
     items = await tryFetch("limit=50");
+    // Si on a utilisé le fallback, les comptes peuvent être liés à COMPOSIO_USER_ID
+    if (items.length > 0) {
+      effectiveUserId = COMPOSIO_USER_ID;
+      logger.info({ requestedUserId: uid, effectiveUserId }, "[RAG] Using COMPOSIO_USER_ID for accounts from limit=50 fallback");
+    }
   }
-  return items
+  const accounts = items
     .map((item: any) => {
       const id = item?.id ?? item?.connected_account_id;
       const slug =
@@ -386,6 +393,7 @@ async function getComposioConnectedAccounts(
       return id && slug ? { id, toolkitSlug: String(slug).toLowerCase() } : null;
     })
     .filter(Boolean) as { id: string; toolkitSlug: string }[];
+  return [accounts, effectiveUserId];
 }
 
 /** Récupère le contenu d'un Google Sheet via l'API Sheets (spreadsheetId = fileId Drive). */
@@ -413,18 +421,36 @@ async function getGoogleSheetContent(
   return text.length > 0 ? text.slice(0, maxChars) : null;
 }
 
+/** Extrait le texte d'une réponse GOOGLEDRIVE_PARSE_FILE ou DOWNLOAD. */
+function extractFileContentFromResponse(res: any): string | null {
+  if (!res || typeof res !== "object") return null;
+  const candidates = [
+    res?.text,
+    res?.content,
+    res?.exportedContent,
+    res?.exported_content,
+    res?.output,
+    typeof res?.data === "string" ? res.data : null,
+    res?.data?.text ?? res?.data?.content ?? res?.data?.output,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim().length > 0) return c.trim();
+  }
+  return null;
+}
+
 /** Récupère les documents Drive/OneDrive pour l'indexation RAG. */
 async function getComposioDocumentsForRag(
   userId?: string
 ): Promise<{ filename: string; source: string; content: string }[]> {
-  const accounts = await getComposioConnectedAccounts(userId);
+  const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
   const docs: { filename: string; source: string; content: string }[] = [];
   const maxFilesPerDrive = 25;
   const maxCharsPerFile = 15000;
   const sheetsAccountIds = accounts
     .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
     .map((a) => a.id);
-  const toolUser = userId ? { user_id: userId } : {};
+  const toolUser = effectiveUserId ? { user_id: effectiveUserId } : {};
 
   logger.info({ userId, accountCount: accounts.length, slugs: accounts.map((a) => a.toolkitSlug) }, "[RAG] Fetching docs for accounts");
   for (const { id, toolkitSlug } of accounts) {
@@ -449,7 +475,7 @@ async function getComposioDocumentsForRag(
             text: "List my 30 most recent files from Google Drive",
           }) as any;
         }
-        let files = out?.files ?? out?.items ?? out?.data ?? out?.value ?? [];
+        let files = out?.files ?? out?.items ?? out?.data?.files ?? out?.data?.items ?? out?.data ?? out?.value ?? [];
         let list = Array.isArray(files) ? files : [];
         if (list.length === 0 && out) {
           logger.warn({ outKeys: Object.keys(out), sample: JSON.stringify(out).slice(0, 500) }, "[RAG] Drive LIST_FILES returned empty list");
@@ -464,7 +490,7 @@ async function getComposioDocumentsForRag(
             q: "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false",
           },
         }) as any;
-        const sheetFiles = sheetOut?.files ?? sheetOut?.items ?? sheetOut?.data ?? sheetOut?.value ?? [];
+        const sheetFiles = sheetOut?.files ?? sheetOut?.items ?? sheetOut?.data?.files ?? sheetOut?.data?.items ?? sheetOut?.data ?? sheetOut?.value ?? [];
         const sheetList = Array.isArray(sheetFiles) ? sheetFiles : [];
         const seen = new Set(list.map((f: any) => f?.id ?? f?.fileId));
         for (const f of sheetList) {
@@ -487,17 +513,28 @@ async function getComposioDocumentsForRag(
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
-            text =
-              parseRes?.text ??
-              parseRes?.content ??
-              (typeof parseRes?.data === "string" ? parseRes.data : null) ??
-              parseRes?.exportedContent;
+            text = extractFileContentFromResponse(parseRes);
+            if (!text && parseRes && i === 0) {
+              logger.info({ parseResKeys: Object.keys(parseRes), sample: JSON.stringify(parseRes).slice(0, 300) }, "[RAG] PARSE_FILE response structure (first file)");
+            }
           } catch (parseErr) {
             logger.warn({ fileId, name, mimeType, err: String(parseErr) }, "[RAG] PARSE_FILE failed");
           }
+          if (!text) {
+            try {
+              const dlRes = await composioExecuteTool("GOOGLEDRIVE_DOWNLOAD_FILE", {
+                ...toolUser,
+                connected_account_id: id,
+                arguments: { file_id: fileId },
+              }) as any;
+              text = extractFileContentFromResponse(dlRes);
+            } catch {
+              // Ignorer
+            }
+          }
           if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
             try {
-              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, userId);
+              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, effectiveUserId);
             } catch (sheetErr) {
               logger.warn({ fileId, name, err: String(sheetErr) }, "[RAG] getGoogleSheetContent failed");
             }
@@ -625,12 +662,12 @@ async function composioExecuteTool(
 
 /** Récupère un résumé des emails et documents via les comptes Composio connectés (Gmail, Outlook, Drive). */
 async function getComposioDataForContext(userId?: string): Promise<string> {
-  const accounts = await getComposioConnectedAccounts(userId);
+  const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
   if (accounts.length === 0) return "";
 
   const parts: string[] = [];
   const maxSnippetLen = 400;
-  const toolUser = userId ? { user_id: userId } : {};
+  const toolUser = effectiveUserId ? { user_id: effectiveUserId } : {};
   const sheetsAccountIds = accounts
     .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
     .map((a) => a.id);
@@ -712,17 +749,25 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
               connected_account_id: id,
               arguments: { file_id: fileId },
             }) as any;
-            text =
-              parseRes?.text ??
-              parseRes?.content ??
-              (typeof parseRes?.data === "string" ? parseRes.data : null) ??
-              parseRes?.exportedContent;
+            text = extractFileContentFromResponse(parseRes);
           } catch {
             // Fichier non parseable (ex: Google Sheet natif)
           }
+          if (!text) {
+            try {
+              const dlRes = await composioExecuteTool("GOOGLEDRIVE_DOWNLOAD_FILE", {
+                ...toolUser,
+                connected_account_id: id,
+                arguments: { file_id: fileId },
+              }) as any;
+              text = extractFileContentFromResponse(dlRes);
+            } catch {
+              // Ignorer
+            }
+          }
           if (!text && /spreadsheet/i.test(mimeType) && sheetsAccountIds.length > 0) {
             try {
-              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, userId);
+              text = await getGoogleSheetContent(fileId, sheetsAccountIds[0], maxCharsPerFile, effectiveUserId);
             } catch {
               // Ignorer
             }
@@ -857,7 +902,7 @@ async function getComposioDataForContext(userId?: string): Promise<string> {
 }
 
 async function getComposioContext(userId?: string): Promise<string> {
-  const accounts = await getComposioConnectedAccounts(userId);
+  const [accounts] = await getComposioConnectedAccounts(userId);
   if (accounts.length === 0) {
     return COMPOSIO_API_KEY ? "Aucun toolkit Composio connecté." : "";
   }
@@ -1319,7 +1364,7 @@ app.post("/api/rag/sync", async (req, res) => {
   }
   try {
     const userId = await getComposioUserIdFromRequest(req);
-    const accounts = await getComposioConnectedAccounts(userId);
+    const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
     const driveOrSheets = accounts.some(
       (a) =>
         /googledrive|google_drive|googlesheets|google_sheets|onedrive|one_drive/.test(a.toolkitSlug)
@@ -1334,7 +1379,7 @@ app.post("/api/rag/sync", async (req, res) => {
         indexed: 0,
         chunks: 0,
         message: `Aucun document à indexer.${hint}`,
-        debug: process.env.NODE_ENV !== "production" ? { userId, accountSlugs: accounts.map((a) => a.toolkitSlug) } : undefined,
+        debug: process.env.NODE_ENV !== "production" ? { userId, effectiveUserId, accountSlugs: accounts.map((a) => a.toolkitSlug) } : undefined,
       });
     }
     const { indexed, chunks } = await indexDocuments(docs, apiKey);
