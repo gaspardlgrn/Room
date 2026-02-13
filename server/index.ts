@@ -488,12 +488,23 @@ async function extractFileContentFromResponse(res: any): Promise<string | null> 
     res?.data?.downloaded_file_content?.s3url;
   if (typeof url === "string" && url.startsWith("http") && url.length < 2000) {
     try {
-      const fetchPromise = fetch(url).then((r) => r.text());
-      const timeoutPromise = new Promise<string>((_, rej) =>
-        setTimeout(() => rej(new Error("timeout")), 12000)
-      );
-      const txt = await Promise.race([fetchPromise, timeoutPromise]);
-      if (txt && typeof txt === "string" && txt.length > 0) return txt.trim().slice(0, 15000);
+      const r = await Promise.race([
+        fetch(url),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 10000)),
+      ]);
+      const reader = r.body?.getReader();
+      if (!reader) return null;
+      const decoder = new TextDecoder();
+      let result = "";
+      let total = 0;
+      const maxBytes = 80000;
+      while (total < maxBytes) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value, { stream: true });
+        total += value.length;
+      }
+      if (result.trim().length > 0) return result.trim().slice(0, 15000);
     } catch {
       // Ignorer (timeout, réseau, etc.)
     }
@@ -511,7 +522,7 @@ async function getComposioDocumentsForRag(
     a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
   );
   const docs: { filename: string; source: string; content: string }[] = [];
-  const maxFilesPerDrive = 2;
+  const maxFilesPerDrive = 1;
   const maxCharsPerFile = 8000;
   const sheetsAccountIds = accounts
     .filter((a) => a.toolkitSlug === "googlesheets" || a.toolkitSlug === "google_sheets")
@@ -527,7 +538,7 @@ async function getComposioDocumentsForRag(
         const out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
           ...toolUser,
           connected_account_id: id,
-          arguments: { page_size: 5 },
+          arguments: { page_size: 3 },
         }) as any;
         let files = out?.files ?? out?.items ?? out?.data?.files ?? out?.data?.items ?? out?.data ?? out?.value ?? [];
         let list = Array.isArray(files) ? files : [];
@@ -1343,8 +1354,16 @@ app.post("/api/rag/sync", async (req, res) => {
     });
   }
   try {
-    const userId = await getComposioUserIdFromRequest(req);
-    const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
+    let userId: string;
+    let accounts: { id: string; toolkitSlug: string }[];
+    let effectiveUserId: string;
+    try {
+      userId = await getComposioUserIdFromRequest(req);
+      [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
+    } catch (authErr) {
+      logger.error({ err: authErr }, "[RAG] auth/accounts failed");
+      return res.status(500).json({ error: "Erreur lors de la récupération des comptes." });
+    }
     const hasDrive = accounts.some(
       (a) => a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
     );
@@ -1371,7 +1390,16 @@ app.post("/api/rag/sync", async (req, res) => {
         debug: { ...debug, userId, effectiveUserId, accountSlugs: accounts.map((a) => a.toolkitSlug) },
       });
     }
-    const { indexed, chunks } = await indexDocuments(docs, apiKey);
+    let indexed: number;
+    let chunks: number;
+    try {
+      const result = await indexDocuments(docs, apiKey);
+      indexed = result.indexed;
+      chunks = result.chunks;
+    } catch (idxErr) {
+      logger.error({ err: idxErr }, "[RAG] indexDocuments failed");
+      return res.status(500).json({ error: "Erreur lors de l'indexation Pinecone." });
+    }
     return res.json({
       ok: true,
       indexed,
