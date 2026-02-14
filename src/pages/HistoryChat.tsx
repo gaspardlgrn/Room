@@ -13,6 +13,7 @@ type DocumentMessage = {
   filename?: string
   format?: string
   base64?: string
+  error?: string
 }
 
 type ChatMessage =
@@ -71,11 +72,12 @@ export default function HistoryChat() {
             )
           )
         }
-      } catch {
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Erreur lors de la génération'
         setMessages((prev) =>
           prev.map((m) =>
             m.id === docMsg.id && m.role === 'document'
-              ? { ...m, status: 'ready' as const, filename: 'Erreur', format: 'docx' }
+              ? { ...m, status: 'ready' as const, filename: 'Erreur', format: 'docx', error: msg }
               : m
           )
         )
@@ -336,6 +338,7 @@ export default function HistoryChat() {
             if (message.role === 'document') {
               const DocIcon = message.format === 'xlsx' ? FileSpreadsheet : message.format === 'pptx' ? Presentation : FileText
               const isPending = message.status === 'pending'
+              const hasError = !!message.error
               const filename = message.filename || 'document'
               const canDownload = message.status === 'ready' && message.base64
               return (
@@ -344,9 +347,11 @@ export default function HistoryChat() {
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
                       <DocIcon className="h-5 w-5" />
                     </div>
-                    <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
-                      {isPending ? 'Génération en cours...' : filename}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-gray-700">
+                        {isPending ? 'Génération en cours...' : hasError ? message.error : filename}
+                      </span>
+                    </div>
                     {isPending ? (
                       <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-400" />
                     ) : canDownload ? (
@@ -358,6 +363,23 @@ export default function HistoryChat() {
                         <Download className="h-3.5 w-3.5" />
                         Télécharger
                       </a>
+                    ) : hasError ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMessages((prev) =>
+                            prev.map((m) =>
+                              m.id === message.id && m.role === 'document'
+                                ? { ...m, status: 'pending' as const, error: undefined }
+                                : m
+                            )
+                          )
+                          generateDocument({ ...message, status: 'pending', error: undefined })
+                        }}
+                        className="flex shrink-0 items-center gap-1 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Réessayer
+                      </button>
                     ) : null}
                   </div>
                 </div>
