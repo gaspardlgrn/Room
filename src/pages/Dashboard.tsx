@@ -57,7 +57,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative flex min-h-[70vh] flex-col items-center justify-center px-4">
+    <div className="relative flex min-h-[calc(100vh-8rem)] flex-col items-center justify-center px-4">
       <div className="max-w-2xl text-center">
         <div className="font-display text-[24px] leading-tight text-gray-900">
           What can Room help with today?
