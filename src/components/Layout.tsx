@@ -216,18 +216,17 @@ function LayoutContent() {
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen((o) => !o)}
-                  className={`flex w-full items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
-                    sidebarCollapsed ? 'justify-center' : 'gap-2'
+                  className={`flex w-full items-center text-sm ${
+                    sidebarCollapsed
+                      ? 'justify-center rounded bg-gray-700 px-0 py-0 text-white hover:bg-gray-600'
+                      : 'gap-2 rounded-lg border border-gray-200 px-3 py-2 text-gray-700 hover:bg-gray-50'
                   }`}
                   title="Profil"
                   aria-expanded={profileMenuOpen}
                   aria-haspopup="true"
                 >
                   {sidebarCollapsed ? (
-                    <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-700 text-xs font-medium text-white"
-                      aria-hidden
-                    >
+                    <span className="flex h-8 w-8 items-center justify-center text-xs font-medium" aria-hidden>
                       {user?.firstName || user?.lastName
                         ? [user.firstName?.[0], user.lastName?.[0]]
                             .filter(Boolean)
