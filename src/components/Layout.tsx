@@ -118,9 +118,9 @@ function LayoutContent() {
           onMouseEnter={() => setSidebarCollapsed(false)}
           onMouseLeave={() => setSidebarCollapsed(true)}
         >
-          <Link to="/dashboard" className="flex h-14 shrink-0 items-center px-4">
+          <Link to="/dashboard" className="flex h-14 shrink-0 items-center justify-center px-4">
             <img
-              src="/room-logo.png"
+              src={sidebarCollapsed ? '/room-logo-r.png' : '/room-logo.png'}
               alt="Room"
               className={`object-contain object-left ${sidebarCollapsed ? 'h-6' : 'h-8'}`}
             />
