@@ -13,7 +13,6 @@ import {
   Settings,
   Shield,
   Sparkles,
-  User,
 } from 'lucide-react'
 import { SignOutButton, useUser } from '@clerk/clerk-react'
 import { RecentDocumentsProvider } from '@/state/recentDocuments'
