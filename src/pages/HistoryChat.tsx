@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { Download, ExternalLink, FileSpreadsheet, FileText, Loader2, Presentation } from 'lucide-react'
+import { Download, ExternalLink, Loader2 } from 'lucide-react'
 import MarkdownAnswer from '../components/MarkdownAnswer'
+import OfficeLogo from '../components/OfficeLogo'
 import SourcesPanel from '../components/SourcesPanel'
 
 type DocumentMessage = {
@@ -336,7 +337,6 @@ export default function HistoryChat() {
               )
             }
             if (message.role === 'document') {
-              const DocIcon = message.format === 'xlsx' ? FileSpreadsheet : message.format === 'pptx' ? Presentation : FileText
               const isPending = message.status === 'pending'
               const hasError = !!message.error
               const filename = message.filename || 'document'
@@ -344,9 +344,7 @@ export default function HistoryChat() {
               return (
                 <div key={message.id} className="flex justify-start">
                   <div className="flex max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
-                      <DocIcon className="h-5 w-5" />
-                    </div>
+                    <OfficeLogo format={message.format || 'docx'} size={40} />
                     <div className="min-w-0 flex-1">
                       <span className="block truncate text-sm text-gray-700">
                         {isPending ? 'Génération en cours...' : hasError ? message.error : filename}
