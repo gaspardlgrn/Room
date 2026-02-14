@@ -118,11 +118,13 @@ function LayoutContent() {
           onMouseEnter={() => setSidebarCollapsed(false)}
           onMouseLeave={() => setSidebarCollapsed(true)}
         >
-          <div className="flex h-14 shrink-0 items-center px-4 text-xl font-semibold text-gray-900">
-            <span className={sidebarCollapsed ? 'text-lg' : ''}>
-              {sidebarCollapsed ? 'r' : 'rogo'}
-            </span>
-          </div>
+          <Link to="/dashboard" className="flex h-14 shrink-0 items-center px-4">
+            <img
+              src="/room-logo.png"
+              alt="Room"
+              className={`object-contain object-left ${sidebarCollapsed ? 'h-6' : 'h-8'}`}
+            />
+          </Link>
           <div className="min-h-0 flex-1 overflow-y-auto pb-28">
           {/* Ancien bouton New Chat au-dessus du menu supprimé : l'entrée est désormais dans la liste principale */}
           <nav className="px-3 py-2">
