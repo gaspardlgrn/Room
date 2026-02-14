@@ -8,7 +8,6 @@ import {
   Home,
   LayoutGrid,
   LogOut,
-  Plus,
   Search,
   Settings,
   Shield,
@@ -28,7 +27,6 @@ function LayoutContent() {
   const isAdminUser = userEmail === 'gaspard@getroom.io'
 
   const navigation = [
-    { name: 'New Chat', href: '/dashboard', icon: Plus },
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Incognito File Chat', href: '/research', icon: FileText },
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
