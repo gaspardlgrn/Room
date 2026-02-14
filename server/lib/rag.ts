@@ -18,8 +18,8 @@ export type DocumentChunk = {
 /** Découpe un texte en chunks avec overlap. */
 function chunkText(
   text: string,
-  chunkSize = 800,
-  overlap = 150
+  chunkSize = 600,
+  overlap = 100
 ): string[] {
   const chunks: string[] = [];
   let start = 0;

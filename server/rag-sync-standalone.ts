@@ -32,21 +32,30 @@ async function getUserId(authHeader: string, cookie: string | undefined): Promis
   }
 }
 
+const COMPOSIO_TIMEOUT_MS = 2500;
+
 async function composioFetch(path: string, body?: object): Promise<{ ok: boolean; data?: any }> {
   if (!COMPOSIO_KEY) return { ok: false };
-  const res = await fetch(`${COMPOSIO_BASE}${path}`, {
-    method: body ? "POST" : "GET",
-    headers: { "Content-Type": "application/json", "x-api-key": COMPOSIO_KEY },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  let data: any;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), COMPOSIO_TIMEOUT_MS);
   try {
-    data = text ? JSON.parse(text) : undefined;
-  } catch {
-    data = text;
+    const res = await fetch(`${COMPOSIO_BASE}${path}`, {
+      method: body ? "POST" : "GET",
+      headers: { "Content-Type": "application/json", "x-api-key": COMPOSIO_KEY },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+    const text = await res.text();
+    let data: any;
+    try {
+      data = text ? JSON.parse(text) : undefined;
+    } catch {
+      data = text;
+    }
+    return { ok: res.ok, data };
+  } finally {
+    clearTimeout(t);
   }
-  return { ok: res.ok, data };
 }
 
 async function composioExecute(tool: string, body: object): Promise<any> {
@@ -80,32 +89,38 @@ async function extractContent(res: any): Promise<string | null> {
   const keys = ["text", "content", "output", "body", "data"];
   for (const k of keys) {
     const v = res[k] ?? res?.data?.[k];
-    if (typeof v === "string" && v.trim()) return v.trim().slice(0, 15000);
+    if (typeof v === "string" && v.trim()) return v.trim().slice(0, 6000);
   }
   const url = res?.downloaded_file_content?.s3url ?? res?.url ?? res?.file_url;
   if (typeof url === "string" && url.startsWith("http") && url.length < 2000) {
     try {
       const r = await Promise.race([
         fetch(url),
-        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 5000)),
+        new Promise<never>((_, rej) => setTimeout(() => rej(new Error("timeout")), 2000)),
       ]);
       const reader = r.body?.getReader();
       if (!reader) return null;
       const dec = new TextDecoder();
       let out = "";
       let n = 0;
-      while (n < 40000) {
+      while (n < 20000) {
         const { done, value } = await reader.read();
         if (done) break;
         out += dec.decode(value, { stream: true });
         n += value.length;
       }
-      return out.trim() ? out.trim().slice(0, 15000) : null;
+      return out.trim() ? out.trim().slice(0, 6000) : null;
     } catch {
       return null;
     }
   }
   return null;
+}
+
+const SYNC_TIMEOUT_MS = 9000;
+
+function timeoutAfter(ms: number): Promise<never> {
+  return new Promise((_, rej) => setTimeout(() => rej(new Error("sync_timeout")), ms));
 }
 
 export async function runRagSync(
@@ -117,6 +132,7 @@ export async function runRagSync(
   if (!apiKey) return { status: 500, body: { error: "OPENAI_API_KEY manquante." } };
   if (!pineconeKey) return { status: 500, body: { error: "PINECONE_API_KEY manquante." } };
 
+  const run = async (): Promise<{ status: number; body: object }> => {
   const userId = await getUserId(authHeader, cookie);
   const [accounts, effectiveUserId] = await getAccounts(userId);
   const driveAccounts = accounts.filter((a) => a.slug === "googledrive" || a.slug === "google_drive");
@@ -158,7 +174,7 @@ export async function runRagSync(
     const dlRes = await composioExecute("GOOGLEDRIVE_DOWNLOAD_FILE", { ...toolUser, connected_account_id: acc.id, arguments: args });
     text = await extractContent(dlRes);
     if (text) {
-      docs.push({ filename: String(name).slice(0, 200), source: "Google Drive", content: text.slice(0, 8000) });
+      docs.push({ filename: String(name).slice(0, 200), source: "Google Drive", content: text.slice(0, 4000) });
     }
   }
 
@@ -185,4 +201,19 @@ export async function runRagSync(
       message: `${indexed} document(s) indexé(s), ${chunks} chunk(s) dans Pinecone.`,
     },
   };
+  };
+
+  try {
+    return await Promise.race([run(), timeoutAfter(SYNC_TIMEOUT_MS)]);
+  } catch (err) {
+    if (err instanceof Error && err.message === "sync_timeout") {
+      return {
+        status: 408,
+        body: {
+          error: "Synchronisation interrompue (limite 10s sur plan Hobby). Réessaie ou passe au plan Pro pour 60s.",
+        },
+      };
+    }
+    throw err;
+  }
 }
