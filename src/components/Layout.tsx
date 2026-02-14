@@ -223,7 +223,20 @@ function LayoutContent() {
                   aria-expanded={profileMenuOpen}
                   aria-haspopup="true"
                 >
-                  {user?.imageUrl ? (
+                  {sidebarCollapsed ? (
+                    <span
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-gray-700 text-xs font-medium text-white"
+                      aria-hidden
+                    >
+                      {user?.firstName || user?.lastName
+                        ? [user.firstName?.[0], user.lastName?.[0]]
+                            .filter(Boolean)
+                            .join('')
+                            .toUpperCase()
+                            .slice(0, 2) || '?'
+                        : user?.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() ?? '?'}
+                    </span>
+                  ) : user?.imageUrl ? (
                     <img
                       src={user.imageUrl}
                       alt=""
