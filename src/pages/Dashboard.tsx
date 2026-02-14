@@ -103,11 +103,6 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
-
-      <div className="pointer-events-none absolute bottom-4 right-4 hidden w-40 overflow-hidden rounded-2xl bg-black/90 shadow-xl sm:block">
-        <div className="h-28 bg-gradient-to-br from-gray-700 via-gray-900 to-black" />
-        <div className="px-3 py-2 text-xs text-white/80">Room demo</div>
-      </div>
     </div>
   )
 }
