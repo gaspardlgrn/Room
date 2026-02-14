@@ -206,114 +206,80 @@ function LayoutContent() {
                 <HelpCircle className="h-5 w-5 text-gray-700" />
                 {!sidebarCollapsed ? 'Help & Support' : null}
               </button>
-              <Link
-                to="/settings"
-                className={`flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
-                  sidebarCollapsed ? 'justify-center' : 'gap-2'
-                }`}
-                title="Settings"
-              >
-                <Settings className="h-5 w-5 text-gray-700" />
-                {!sidebarCollapsed ? 'Settings' : null}
-              </Link>
-              <SignOutButton redirectUrl="/login">
+              <div className="relative">
                 <button
                   type="button"
-                  className={`flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
+                  onClick={() => setProfileMenuOpen((o) => !o)}
+                  className={`flex w-full items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
                     sidebarCollapsed ? 'justify-center' : 'gap-2'
                   }`}
-                  aria-label="Déconnexion"
-                  title="Logout"
+                  title="Profil"
+                  aria-expanded={profileMenuOpen}
+                  aria-haspopup="true"
                 >
-                  <LogOut className="h-5 w-5 text-gray-700" />
-                  {!sidebarCollapsed ? 'Logout' : null}
+                  {user?.imageUrl ? (
+                    <img
+                      src={user.imageUrl}
+                      alt=""
+                      className="h-5 w-5 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <User className="h-5 w-5 shrink-0 text-gray-600" />
+                  )}
+                  {!sidebarCollapsed ? (
+                    <span className="min-w-0 truncate text-left">
+                      {user?.firstName || user?.lastName
+                        ? [user.firstName, user.lastName].filter(Boolean).join(' ')
+                        : user?.primaryEmailAddress?.emailAddress ?? 'Profil'}
+                    </span>
+                  ) : null}
                 </button>
-              </SignOutButton>
+                {profileMenuOpen ? (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      aria-hidden
+                      onClick={() => setProfileMenuOpen(false)}
+                    />
+                    <div
+                      className="absolute bottom-full left-0 mb-1 w-full min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg z-50"
+                      role="menu"
+                    >
+                      <Link
+                        to="/settings"
+                        onClick={() => setProfileMenuOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        role="menuitem"
+                      >
+                        <Settings className="h-4 w-4 text-gray-500" />
+                        Paramètres
+                      </Link>
+                      <SignOutButton redirectUrl="/login">
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                          role="menuitem"
+                          onClick={() => setProfileMenuOpen(false)}
+                        >
+                          <LogOut className="h-4 w-4 text-gray-500" />
+                          Déconnexion
+                        </button>
+                      </SignOutButton>
+                    </div>
+                  </>
+                ) : null}
+              </div>
             </div>
           </div>
         </aside>
 
         <div
-          className="flex-1 pb-16 lg:ml-[var(--sidebar-width)]"
+          className="flex-1 lg:ml-[var(--sidebar-width)]"
           onClick={() => setSidebarCollapsed(true)}
         >
           <main className="px-6 py-8">
             <Outlet />
           </main>
-        </div>
-      </div>
-
-      {/* Barre fixe en bas : profil utilisateur */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] lg:left-[var(--sidebar-width)]"
-        aria-label="Profil utilisateur"
-      >
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setProfileMenuOpen((o) => !o)}
-            className="flex items-center gap-3 rounded-lg px-2 py-1.5 text-gray-700 transition hover:bg-gray-50"
-            title="Profil"
-            aria-expanded={profileMenuOpen}
-            aria-haspopup="true"
-          >
-            {user?.imageUrl ? (
-              <img
-                src={user.imageUrl}
-                alt=""
-                className="h-8 w-8 rounded-full object-cover ring-1 ring-gray-200"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-gray-600">
-                <User className="h-4 w-4" />
-              </div>
-            )}
-            <div className="hidden min-w-0 sm:block">
-              <div className="truncate text-left text-sm font-medium text-gray-900">
-                {user?.firstName || user?.lastName
-                  ? [user.firstName, user.lastName].filter(Boolean).join(' ')
-                  : user?.primaryEmailAddress?.emailAddress ?? 'Profil'}
-              </div>
-              <div className="truncate text-left text-xs text-gray-500">
-                {user?.primaryEmailAddress?.emailAddress ?? ''}
-              </div>
-            </div>
-          </button>
-
-          {profileMenuOpen ? (
-            <>
-              <div
-                className="fixed inset-0 z-40"
-                aria-hidden
-                onClick={() => setProfileMenuOpen(false)}
-              />
-              <div
-                className="absolute bottom-full left-0 mb-2 min-w-[180px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg z-50"
-                role="menu"
-              >
-                <Link
-                  to="/settings"
-                  onClick={() => setProfileMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                  role="menuitem"
-                >
-                  <Settings className="h-4 w-4 text-gray-500" />
-                  Paramètres
-                </Link>
-                <SignOutButton redirectUrl="/login">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                    role="menuitem"
-                    onClick={() => setProfileMenuOpen(false)}
-                  >
-                    <LogOut className="h-4 w-4 text-gray-500" />
-                    Déconnexion
-                  </button>
-                </SignOutButton>
-              </div>
-            </>
-          ) : null}
         </div>
       </div>
 
