@@ -1,9 +1,24 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { ExternalLink } from 'lucide-react'
+import { Download, ExternalLink, FileSpreadsheet, FileText, Loader2, Presentation } from 'lucide-react'
 import MarkdownAnswer from '../components/MarkdownAnswer'
 import SourcesPanel from '../components/SourcesPanel'
+
+type DocumentMessage = {
+  id: string
+  role: 'document'
+  prompt: string
+  status: 'pending' | 'ready'
+  filename?: string
+  format?: string
+  base64?: string
+}
+
+type ChatMessage =
+  | { id: string; role: 'user'; text: string }
+  | { id: string; role: 'assistant'; text: string; sources?: Array<{ title?: string; url?: string; publishedDate?: string; author?: string; excerpt?: string }> }
+  | DocumentMessage
 
 export default function HistoryChat() {
   const { getToken } = useAuth()
@@ -21,33 +36,66 @@ export default function HistoryChat() {
     items: string[]
   } | null>(null)
   const thinkingIntervalRef = useRef<number | null>(null)
-  const [messages, setMessages] = useState<
-    Array<{
-      id: string
-      role: 'user' | 'assistant'
-      text: string
-      sources?: Array<{
-        title?: string
-        url?: string
-        publishedDate?: string
-        author?: string
-        excerpt?: string
-      }>
-    }>
-  >([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+
+  const generateDocument = useCallback(
+    async (docMsg: DocumentMessage) => {
+      if (docMsg.status !== 'pending') return
+      try {
+        const token = await getToken()
+        const res = await fetch('/api/generate-from-prompt', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({ prompt: docMsg.prompt }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data?.error || `Erreur ${res.status}`)
+        }
+        const blob = await res.blob()
+        const filename = decodeURIComponent(res.headers.get('X-Filename') || 'document')
+        const format = res.headers.get('X-Format') || 'docx'
+        const reader = new FileReader()
+        reader.readAsDataURL(blob)
+        reader.onloadend = () => {
+          const base64 = (reader.result as string)?.split(',')[1]
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === docMsg.id && m.role === 'document'
+                ? { ...m, status: 'ready' as const, filename, format, base64 }
+                : m
+            )
+          )
+        }
+      } catch {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === docMsg.id && m.role === 'document'
+              ? { ...m, status: 'ready' as const, filename: 'Erreur', format: 'docx' }
+              : m
+          )
+        )
+      }
+    },
+    [getToken]
+  )
 
   useEffect(() => {
-    // Réinitialiser le flag quand on change de conversation
     hasAutoSentRef.current = false
-    
     try {
       const raw = window.localStorage.getItem(storageKey)
       if (raw) {
-        const parsed = JSON.parse(raw) as typeof messages
+        const parsed = JSON.parse(raw) as ChatMessage[]
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMessages(parsed)
-          // Si c'est une nouvelle conversation avec seulement un message utilisateur, envoyer automatiquement
-          if (parsed.length === 1 && parsed[0].role === 'user' && !hasAutoSentRef.current) {
+          const docPending = parsed.find((m) => m.role === 'document' && m.status === 'pending')
+          if (docPending) {
+            generateDocument(docPending as DocumentMessage)
+          } else if (parsed.length === 1 && parsed[0].role === 'user' && !hasAutoSentRef.current) {
             hasAutoSentRef.current = true
             handleAutoSend(parsed[0].text)
           }
@@ -58,7 +106,7 @@ export default function HistoryChat() {
       // Ignore storage errors
     }
     setMessages([])
-  }, [storageKey])
+  }, [storageKey, generateDocument])
 
   const sendMessageWithStreaming = async (messageText: string) => {
     if (isSending) return
@@ -285,6 +333,36 @@ export default function HistoryChat() {
                 </div>
               )
             }
+            if (message.role === 'document') {
+              const DocIcon = message.format === 'xlsx' ? FileSpreadsheet : message.format === 'pptx' ? Presentation : FileText
+              const isPending = message.status === 'pending'
+              const filename = message.filename || 'document'
+              const canDownload = message.status === 'ready' && message.base64
+              return (
+                <div key={message.id} className="flex justify-start">
+                  <div className="flex max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                      <DocIcon className="h-5 w-5" />
+                    </div>
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-700">
+                      {isPending ? 'Génération en cours...' : filename}
+                    </span>
+                    {isPending ? (
+                      <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-400" />
+                    ) : canDownload ? (
+                      <a
+                        href={`data:${message.format === 'xlsx' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : message.format === 'pptx' ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};base64,${message.base64}`}
+                        download={filename}
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Télécharger
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            }
             const isEmpty = !message.text || message.text.trim() === ''
             const isLastMessage = messages[messages.length - 1]?.id === message.id
             const showTyping = isEmpty && isLastMessage && isSending
@@ -331,11 +409,11 @@ export default function HistoryChat() {
       {showSources ? (
         <SourcesPanel
           sources={
-            messages
+            (messages
               .slice()
               .reverse()
-              .find((item) => item.role === "assistant" && item.sources?.length)
-              ?.sources ?? []
+              .find((m): m is Extract<ChatMessage, { role: 'assistant' }> => m.role === 'assistant')
+            )?.sources ?? []
           }
           onClose={() => setShowSources(false)}
         />

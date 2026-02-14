@@ -1,48 +1,48 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Send, Sparkles } from 'lucide-react'
-import { useAuth } from '@clerk/clerk-react'
+import { Send, Sparkles } from 'lucide-react'
 
 export default function Dashboard() {
   const [prompt, setPrompt] = useState('')
-  const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
-  const { getToken } = useAuth()
 
-  const handleSend = async () => {
+  const handleSend = () => {
     const trimmed = prompt.trim()
     if (!trimmed) return
 
     setError(null)
-    setGenerating(true)
-    try {
-      const token = await getToken()
-      const res = await fetch('/api/generate-from-prompt', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'include',
-        body: JSON.stringify({ prompt: trimmed }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data?.error || `Erreur ${res.status}`)
-      }
-      const blob = await res.blob()
-      const filename = decodeURIComponent(res.headers.get('X-Filename') || 'document')
-      const format = res.headers.get('X-Format') || 'docx'
-      const url = URL.createObjectURL(blob)
-      navigate('/document-result', {
-        state: { downloadUrl: url, filename, format },
-      })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de la génération')
-    } finally {
-      setGenerating(false)
+    const newChatId = Date.now()
+    const label = trimmed.length > 50 ? trimmed.substring(0, 50) + '...' : trimmed
+
+    const userMessage = { id: `user-${Date.now()}`, role: 'user' as const, text: trimmed }
+    const docMessage = {
+      id: `document-${Date.now()}`,
+      role: 'document' as const,
+      prompt: trimmed,
+      status: 'pending' as const,
     }
+
+    try {
+      const raw = window.localStorage.getItem('history:items')
+      const existingItems = raw ? JSON.parse(raw) : []
+      const newItems = [
+        { id: newChatId, label },
+        ...existingItems.filter((item: { id: number }) => item.id !== newChatId),
+      ]
+      window.localStorage.setItem('history:items', JSON.stringify(newItems))
+    } catch {
+      // ignore
+    }
+
+    const storageKey = `chat:history:${newChatId}`
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify([userMessage, docMessage]))
+    } catch {
+      // ignore
+    }
+
+    navigate(`/history/${newChatId}`)
   }
 
   return (
@@ -72,14 +72,9 @@ export default function Dashboard() {
           />
           <button
             onClick={handleSend}
-            disabled={generating}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50"
           >
-            {generating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <Send className="h-4 w-4" />
           </button>
         </div>
         {error && (
