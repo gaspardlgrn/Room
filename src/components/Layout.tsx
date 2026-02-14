@@ -121,11 +121,12 @@ function LayoutContent() {
           onMouseEnter={() => setSidebarCollapsed(false)}
           onMouseLeave={() => setSidebarCollapsed(true)}
         >
-          <div className="flex h-14 items-center px-4 text-xl font-semibold text-gray-900">
+          <div className="flex h-14 shrink-0 items-center px-4 text-xl font-semibold text-gray-900">
             <span className={sidebarCollapsed ? 'text-lg' : ''}>
               {sidebarCollapsed ? 'r' : 'rogo'}
             </span>
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto pb-28">
           {/* Ancien bouton New Chat au-dessus du menu supprimé : l'entrée est désormais dans la liste principale */}
           <nav className="px-3 py-2">
             {navigation.map((item) => (
@@ -194,8 +195,13 @@ function LayoutContent() {
               </div>
             </div>
           ) : null}
-          <div className="mt-auto px-3 py-4">
-            <div className="flex flex-col gap-2">
+          </div>
+
+          {/* Barre fixe en bas : Support + Profil, figée au-dessus de la ligne d'horizon */}
+          <div
+              className="fixed bottom-0 left-0 z-50 flex w-[var(--sidebar-width)] flex-col gap-2 border-t border-gray-200 bg-white px-3 py-4 shadow-[0_-2px_10px_rgba(0,0,0,0.04)]"
+              aria-label="Support et profil"
+            >
               <button
                 type="button"
                 className={`flex items-center rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 ${
@@ -270,7 +276,6 @@ function LayoutContent() {
                 ) : null}
               </div>
             </div>
-          </div>
         </aside>
 
         <div
