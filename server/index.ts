@@ -11,6 +11,11 @@ import { generateDocx } from "./lib/docx-generator.js";
 import { generatePptx } from "./lib/pptx-generator.js";
 import { generateTranscriptDocx } from "./lib/transcript-docx.js";
 import { generateTranscriptPptx } from "./lib/transcript-pptx.js";
+import {
+  generateSimpleDocx,
+  generateSimplePptx,
+  generateSimpleXlsx,
+} from "./lib/simple-doc-generator.js";
 import { DocumentType, InvestmentData } from "./types/index.js";
 import OpenAI from "openai";
 import { searchDocuments } from "./lib/rag.js";
@@ -979,6 +984,98 @@ app.post("/api/generate-document", async (req, res) => {
   } catch (error) {
     console.error("Erreur lors de la génération du document:", error);
     const message = error instanceof Error ? error.message : "Erreur lors de la génération du document";
+    if (!res.headersSent) {
+      res.status(500).json({ error: message });
+    }
+  }
+});
+
+type GenerateFromPromptFormat = "docx" | "pptx" | "xlsx";
+
+async function detectDocumentFormat(prompt: string): Promise<GenerateFromPromptFormat> {
+  if (!openai) return "docx";
+  try {
+    const res = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu choisis le format de document le plus adapté à la demande. Réponds UNIQUEMENT par un seul mot: docx (rapport, mémo, analyse, document texte), pptx (présentation, slides), ou xlsx (tableau, données, feuille de calcul).",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.1,
+      max_tokens: 10,
+    });
+    const raw = res.choices[0]?.message?.content?.trim()?.toLowerCase();
+    if (raw?.includes("xlsx")) return "xlsx";
+    if (raw?.includes("pptx")) return "pptx";
+    return "docx";
+  } catch {
+    return "docx";
+  }
+}
+
+app.post("/api/generate-from-prompt", async (req, res) => {
+  try {
+    const { prompt, format } = req.body as {
+      prompt?: string;
+      format?: GenerateFromPromptFormat;
+    };
+    if (!prompt?.trim()) {
+      return res.status(400).json({ error: "Prompt requis." });
+    }
+    if (!process.env.OPENAI_API_KEY || !openai) {
+      return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
+    }
+
+    const fmt =
+      format === "xlsx" ? "xlsx" : format === "pptx" ? "pptx" : await detectDocumentFormat(prompt.trim());
+    const title = prompt.trim().slice(0, 100);
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé.",
+        },
+        { role: "user", content: prompt.trim() },
+      ],
+      temperature: 0.5,
+      max_tokens: 2000,
+    });
+    const content =
+      completion.choices[0]?.message?.content?.trim() ||
+      "Aucun contenu généré.";
+
+    let buffer: Buffer;
+    let contentType: string;
+    let filename: string;
+    const safeTitle = title.replace(/[^a-zA-Z0-9\u00C0-\u024F\s-]/g, "").replace(/\s+/g, "-").slice(0, 50);
+
+    if (fmt === "docx") {
+      buffer = await generateSimpleDocx({ title, content });
+      contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      filename = `${safeTitle || "document"}.docx`;
+    } else if (fmt === "pptx") {
+      buffer = await generateSimplePptx({ title, content });
+      contentType = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      filename = `${safeTitle || "presentation"}.pptx`;
+    } else {
+      buffer = await generateSimpleXlsx({ title, content });
+      contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      filename = `${safeTitle || "document"}.xlsx`;
+    }
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("X-Filename", encodeURIComponent(filename));
+    res.setHeader("X-Format", fmt);
+    res.send(buffer);
+  } catch (error) {
+    console.error("Erreur generate-from-prompt:", error);
+    const message = error instanceof Error ? error.message : "Erreur lors de la génération.";
     if (!res.headersSent) {
       res.status(500).json({ error: message });
     }

@@ -1,59 +1,48 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  CalendarClock,
-  FileSearch,
-  Plus,
-  Send,
-  Sparkles,
-} from 'lucide-react'
+import { Loader2, Send, Sparkles } from 'lucide-react'
+import { useAuth } from '@clerk/clerk-react'
 
 export default function Dashboard() {
   const [prompt, setPrompt] = useState('')
+  const [generating, setGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const { getToken } = useAuth()
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = prompt.trim()
     if (!trimmed) return
 
-    // Générer un nouvel ID de conversation
-    const newChatId = Date.now()
-
-    // Créer le label (tronqué à 50 caractères)
-    const label = trimmed.length > 50 ? trimmed.substring(0, 50) + '...' : trimmed
-
-    // Charger les history items existants
+    setError(null)
+    setGenerating(true)
     try {
-      const raw = window.localStorage.getItem('history:items')
-      const existingItems = raw ? JSON.parse(raw) : []
-      
-      // Ajouter le nouvel item au début de la liste
-      const newItems = [
-        { id: newChatId, label },
-        ...existingItems.filter((item: { id: number }) => item.id !== newChatId),
-      ]
-      
-      // Sauvegarder dans localStorage
-      window.localStorage.setItem('history:items', JSON.stringify(newItems))
-    } catch {
-      // Ignore storage errors
+      const token = await getToken()
+      const res = await fetch('/api/generate-from-prompt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ prompt: trimmed }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || `Erreur ${res.status}`)
+      }
+      const blob = await res.blob()
+      const filename = decodeURIComponent(res.headers.get('X-Filename') || 'document')
+      const format = res.headers.get('X-Format') || 'docx'
+      const url = URL.createObjectURL(blob)
+      navigate('/document-result', {
+        state: { downloadUrl: url, filename, format },
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la génération')
+    } finally {
+      setGenerating(false)
     }
-
-    // Créer le message initial dans localStorage pour cette conversation
-    const storageKey = `chat:history:${newChatId}`
-    const initialMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user' as const,
-      text: trimmed,
-    }
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify([initialMessage]))
-    } catch {
-      // Ignore storage errors
-    }
-
-    // Naviguer vers la nouvelle page de discussion
-    navigate(`/history/${newChatId}`)
   }
 
   return (
@@ -83,25 +72,19 @@ export default function Dashboard() {
           />
           <button
             onClick={handleSend}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50"
+            disabled={generating}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
           >
-            <Send className="h-4 w-4" />
+            {generating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </button>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-gray-500">
-          <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1">
-            <FileSearch className="h-3 w-3" />
-            Search Public Files
-          </button>
-          <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1">
-            <CalendarClock className="h-3 w-3" />
-            Schedule Task
-          </button>
-          <button className="flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1">
-            <Plus className="h-3 w-3" />
-            New Table
-          </button>
-        </div>
+        {error && (
+          <p className="mt-3 text-xs text-red-600">{error}</p>
+        )}
       </div>
     </div>
   )
