@@ -64,7 +64,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="mt-6 w-full max-w-2xl rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+      <div className="mt-6 w-full max-w-2xl rounded-2xl border border-gray-200 !bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center gap-2 text-[11px] text-gray-400">
           <Sparkles className="h-3 w-3" />
           Ask Room anything...
