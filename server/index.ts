@@ -1030,6 +1030,56 @@ app.post("/api/generate-from-prompt", async (req, res) => {
       return res.status(500).json({ error: "OPENAI_API_KEY manquante." });
     }
 
+    const composioUserId = await getComposioUserIdFromRequest(req);
+    const apiKey = process.env.OPENAI_API_KEY;
+    const [exaResults, composioContext, composioData, ragChunks] = await Promise.all([
+      exaSearch(prompt.trim()),
+      getComposioContext(composioUserId),
+      getComposioDataForContext(composioUserId),
+      apiKey ? searchDocuments(prompt.trim(), apiKey, 6) : Promise.resolve([]),
+    ]);
+
+    const ragContext =
+      ragChunks.length > 0
+        ? "Extraits pertinents de tes documents Drive/OneDrive (recherche sémantique RAG):\n\n" +
+          ragChunks
+            .map(
+              (c, i) =>
+                `[${i + 1}] ${c.filename} (${c.source}):\n${c.text.slice(0, 1200)}`
+            )
+            .join("\n\n---\n\n")
+        : "";
+    const exaContext = exaResults
+      .map((result, index) => {
+        const title = result.title || "Source";
+        const url = result.url || "URL inconnue";
+        const published = result.publishedDate ? ` (${result.publishedDate})` : "";
+        const snippet =
+          result.highlights?.[0] ||
+          result.text ||
+          "";
+        const trimmedSnippet = snippet.slice(0, 1200);
+        return `[${index + 1}] ${title}${published}\n${url}\n${trimmedSnippet}`;
+      })
+      .join("\n\n");
+
+    const sources = [
+      ...exaResults.map((r) => ({
+        title: r.title,
+        url: r.url,
+        publishedDate: r.publishedDate,
+        author: r.author,
+        excerpt: r.highlights?.[0] || (r.text ? r.text.slice(0, 260) : undefined),
+      })),
+      ...ragChunks
+        .filter((c) => c.source?.startsWith("http"))
+        .map((c) => ({
+          title: c.filename,
+          url: c.source,
+          excerpt: c.text.slice(0, 260),
+        })),
+    ];
+
     const fmt =
       format === "xlsx" ? "xlsx" : format === "pptx" ? "pptx" : await detectDocumentFormat(prompt.trim());
     const title = prompt.trim().slice(0, 100);
@@ -1041,6 +1091,44 @@ app.post("/api/generate-from-prompt", async (req, res) => {
           content:
             "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé.",
         },
+        ...(exaContext
+          ? [
+              {
+                role: "system" as const,
+                content:
+                  "Sources web (Exa). Utilise ces sources pour les chiffres et faits. Cite-les avec [^n]:\n" +
+                  exaContext,
+              },
+            ]
+          : []),
+        ...(composioContext
+          ? [
+              {
+                role: "system" as const,
+                content: composioData
+                  ? `Comptes Composio connectés: ${composioContext}. Les données ci-dessous proviennent de ces comptes.`
+                  : `Comptes Composio connectés: ${composioContext}.`,
+              },
+            ]
+          : []),
+        ...(composioData
+          ? [
+              {
+                role: "system" as const,
+                content: composioData,
+              },
+            ]
+          : []),
+        ...(ragContext
+          ? [
+              {
+                role: "system" as const,
+                content:
+                  "Extraits de documents Drive/OneDrive (RAG). Utilise-les pour répondre. Cite le fichier source:\n\n" +
+                  ragContext,
+              },
+            ]
+          : []),
         { role: "user", content: prompt.trim() },
       ],
       temperature: 0.5,
@@ -1072,6 +1160,9 @@ app.post("/api/generate-from-prompt", async (req, res) => {
     res.setHeader("Content-Type", contentType);
     res.setHeader("X-Filename", encodeURIComponent(filename));
     res.setHeader("X-Format", fmt);
+    if (sources.length > 0) {
+      res.setHeader("X-Sources", Buffer.from(JSON.stringify(sources)).toString("base64"));
+    }
     res.send(buffer);
   } catch (error) {
     console.error("Erreur generate-from-prompt:", error);

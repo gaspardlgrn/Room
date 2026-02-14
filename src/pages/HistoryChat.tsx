@@ -6,6 +6,8 @@ import MarkdownAnswer from '../components/MarkdownAnswer'
 import OfficeLogo from '../components/OfficeLogo'
 import SourcesPanel from '../components/SourcesPanel'
 
+type DocumentSource = { title?: string; url?: string; publishedDate?: string; author?: string; excerpt?: string }
+
 type DocumentMessage = {
   id: string
   role: 'document'
@@ -15,6 +17,7 @@ type DocumentMessage = {
   format?: string
   base64?: string
   error?: string
+  sources?: DocumentSource[]
 }
 
 type ChatMessage =
@@ -61,6 +64,16 @@ export default function HistoryChat() {
         const blob = await res.blob()
         const filename = decodeURIComponent(res.headers.get('X-Filename') || 'document')
         const format = res.headers.get('X-Format') || 'docx'
+        let sources: DocumentSource[] = []
+        try {
+          const raw = res.headers.get('X-Sources')
+          if (raw) {
+            const decoded = JSON.parse(atob(raw)) as DocumentSource[]
+            if (Array.isArray(decoded)) sources = decoded
+          }
+        } catch {
+          // Ignore
+        }
         const reader = new FileReader()
         reader.readAsDataURL(blob)
         reader.onloadend = () => {
@@ -68,7 +81,7 @@ export default function HistoryChat() {
           setMessages((prev) =>
             prev.map((m) =>
               m.id === docMsg.id && m.role === 'document'
-                ? { ...m, status: 'ready' as const, filename, format, base64 }
+                ? { ...m, status: 'ready' as const, filename, format, base64, sources }
                 : m
             )
           )
@@ -341,6 +354,7 @@ export default function HistoryChat() {
               const hasError = !!message.error
               const filename = message.filename || 'document'
               const canDownload = message.status === 'ready' && message.base64
+              const sourcesCount = message.sources?.length ?? 0
               return (
                 <div key={message.id} className="flex justify-start">
                   <div className="flex max-w-3xl items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
@@ -349,6 +363,11 @@ export default function HistoryChat() {
                       <span className="block truncate text-sm text-gray-700">
                         {isPending ? 'Génération en cours...' : hasError ? message.error : filename}
                       </span>
+                      {sourcesCount > 0 && !isPending && !hasError && (
+                        <span className="mt-0.5 block text-xs text-gray-500">
+                          {sourcesCount} source{sourcesCount > 1 ? 's' : ''} utilisée{sourcesCount > 1 ? 's' : ''}
+                        </span>
+                      )}
                     </div>
                     {isPending ? (
                       <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-400" />
@@ -429,11 +448,17 @@ export default function HistoryChat() {
       {showSources ? (
         <SourcesPanel
           sources={
-            (messages
-              .slice()
-              .reverse()
-              .find((m): m is Extract<ChatMessage, { role: 'assistant' }> => m.role === 'assistant')
-            )?.sources ?? []
+            (() => {
+              const lastWithSources = messages
+                .slice()
+                .reverse()
+                .find(
+                  (m) =>
+                    (m.role === 'assistant' && (m as Extract<ChatMessage, { role: 'assistant' }>).sources?.length) ||
+                    (m.role === 'document' && (m as DocumentMessage).sources?.length)
+                )
+              return lastWithSources && 'sources' in lastWithSources ? (lastWithSources.sources ?? []) : []
+            })()
           }
           onClose={() => setShowSources(false)}
         />
