@@ -73,8 +73,8 @@ export default function Tasks() {
                     {agent.appSlugs.length > 0 && (
                       <> · Apps: {agent.appSlugs.join(', ')}</>
                     )}
-                    {agent.driveFolderName && (
-                      <> · Dossier: {agent.driveFolderName}</>
+                    {(agent.driveFolderPath ?? agent.driveFolderName) && (
+                      <> · Dossier: {agent.driveFolderPath ?? agent.driveFolderName}</>
                     )}
                   </div>
                 </div>
