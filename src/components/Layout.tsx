@@ -32,7 +32,7 @@ function LayoutContent() {
     { name: 'Incognito File Chat', href: '/research', icon: FileText },
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
     { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
-    { name: 'Agents', href: '/agents', icon: Bot },
+    { name: 'Mes agents', href: '/agents', icon: Bot },
     { name: 'Shortcuts', href: '/settings', icon: Sparkles },
     { name: 'History', href: '/history/1', icon: History },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
