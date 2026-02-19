@@ -5,6 +5,7 @@ import Research from './pages/Research'
 import Tasks from './pages/Tasks'
 import HistoryChat from './pages/HistoryChat'
 import CreateDocument from './pages/CreateDocument'
+import CreateAgent from './pages/CreateAgent'
 import RecentDocument from './pages/RecentDocument'
 import Settings from './pages/Settings'
 import ExpertCallAnalysis from './pages/ExpertCallAnalysis'
@@ -35,6 +36,7 @@ const router = createBrowserRouter(
         { path: 'documents', element: <Research /> },
         { path: 'research', element: <Research /> },
         { path: 'tasks', element: <Tasks /> },
+        { path: 'agents/create', element: <CreateAgent /> },
         { path: 'history/:id', element: <HistoryChat /> },
         { path: 'create', element: <CreateDocument /> },
         { path: 'recent/:id', element: <RecentDocument /> },

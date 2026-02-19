@@ -1,51 +1,88 @@
-export default function Tasks() {
-  const tasks = [
-    { id: 1, name: "AI News", schedule: "Weekdays at 11AM" },
-    { id: 2, name: "News Run", schedule: "Daily at 6:22PM" },
-  ];
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Bot, Plus } from 'lucide-react'
+import type { AgentConfig } from './CreateAgent'
 
-  const examples = [
-    { id: 1, name: "Daily Brief: Top AI Industry Headlines", schedule: "Weekdays at 5PM" },
-    { id: 2, name: "Deal of the Week: Market-Moving Transactions", schedule: "Weekly on Fri at 9AM" },
-    { id: 3, name: "Monthly Pulse: CEO Insights on AI Adoption", schedule: "Monthly on the 3rd Wed at 9AM" },
-  ];
+const STORAGE_KEY = 'agents:list'
+
+const recurrenceLabels: Record<AgentConfig['recurrence'], string> = {
+  daily: 'Journalier',
+  weekly: 'Hebdomadaire',
+  monthly: 'Mensuel',
+}
+
+function formatSchedule(agent: AgentConfig): string {
+  return `${recurrenceLabels[agent.recurrence]} à ${agent.time}`
+}
+
+export default function Tasks() {
+  const [agents, setAgents] = useState<AgentConfig[]>([])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      const list = raw ? (JSON.parse(raw) as AgentConfig[]) : []
+      setAgents(list)
+    } catch {
+      setAgents([])
+    }
+  }, [])
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-gray-900">Scheduled Tasks</h1>
-        <p className="text-sm text-gray-500">
-          Automate recurring tasks and research
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">Agents et tâches planifiées</h1>
+          <p className="text-sm text-gray-500">
+            Créez des agents IA récurrents pour automatiser vos recherches et analyses
+          </p>
+        </div>
+        <Link
+          to="/agents/create"
+          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          <Plus className="h-4 w-4" />
+          Créer un agent
+        </Link>
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Active
+          Mes agents
         </div>
-        <div className="mt-3 divide-y divide-gray-100">
-          {tasks.map((task) => (
-            <div key={task.id} className="flex items-center justify-between py-3">
-              <div className="text-sm font-medium text-gray-900">{task.name}</div>
-              <div className="text-xs text-gray-500">{task.schedule}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Try these examples...
-        </div>
-        <div className="mt-3 divide-y divide-gray-100">
-          {examples.map((example) => (
-            <div key={example.id} className="flex items-center justify-between py-3">
-              <div className="text-sm text-gray-700">{example.name}</div>
-              <div className="text-xs text-gray-500">{example.schedule}</div>
-            </div>
-          ))}
-        </div>
+        {agents.length === 0 ? (
+          <div className="mt-4 rounded-lg border border-dashed border-gray-200 py-8 text-center">
+            <Bot className="mx-auto h-10 w-10 text-gray-300" />
+            <p className="mt-2 text-sm text-gray-500">Aucun agent créé</p>
+            <Link
+              to="/agents/create"
+              className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-emerald-600 hover:text-emerald-700"
+            >
+              <Plus className="h-4 w-4" />
+              Créer votre premier agent
+            </Link>
+          </div>
+        ) : (
+          <div className="mt-3 divide-y divide-gray-100">
+            {agents.map((agent) => (
+              <div key={agent.id} className="flex items-center justify-between py-3">
+                <div>
+                  <div className="text-sm font-medium text-gray-900">{agent.name}</div>
+                  <div className="mt-0.5 text-xs text-gray-500">
+                    {formatSchedule(agent)}
+                    {agent.appSlugs.length > 0 && (
+                      <> · Apps: {agent.appSlugs.join(', ')}</>
+                    )}
+                    {agent.driveFolderName && (
+                      <> · Dossier: {agent.driveFolderName}</>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }

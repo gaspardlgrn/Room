@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
+  Bot,
   CalendarClock,
   FileText,
   HelpCircle,
@@ -31,6 +32,7 @@ function LayoutContent() {
     { name: 'Incognito File Chat', href: '/research', icon: FileText },
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
     { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
+    { name: 'Créer un agent', href: '/agents/create', icon: Bot },
     { name: 'Shortcuts', href: '/settings', icon: Sparkles },
     { name: 'History', href: '/history/1', icon: History },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),

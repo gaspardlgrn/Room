@@ -19,6 +19,11 @@ import {
 import { DocumentType, InvestmentData } from "./types/index.js";
 import OpenAI from "openai";
 import { searchDocuments } from "./lib/rag.js";
+import {
+  pappersSearch,
+  formatPappersContext,
+  type PappersEntreprise,
+} from "./lib/pappers.js";
 import { runRagSync } from "./rag-sync-standalone.js";
 import { createClerkClient, verifyToken } from "@clerk/backend";
 
@@ -38,6 +43,7 @@ const COMPOSIO_BASE_URL =
 const COMPOSIO_API_KEY = process.env.COMPOSIO_API_KEY || "";
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID || "room-local";
 const EXA_API_KEY = process.env.EXA_API_KEY || "";
+const PAPPERS_API_KEY = process.env.PAPPERS_API_KEY || "";
 const EXA_NUM_RESULTS = Math.min(
   100,
   Math.max(1, Number(process.env.EXA_NUM_RESULTS || 10))
@@ -1032,12 +1038,18 @@ app.post("/api/generate-from-prompt", async (req, res) => {
 
     const composioUserId = await getComposioUserIdFromRequest(req);
     const apiKey = process.env.OPENAI_API_KEY;
-    const [exaResults, composioContext, composioData, ragChunks] = await Promise.all([
-      exaSearch(prompt.trim()),
-      getComposioContext(composioUserId),
-      getComposioDataForContext(composioUserId),
-      apiKey ? searchDocuments(prompt.trim(), apiKey, 6) : Promise.resolve([]),
-    ]);
+    const [exaResults, composioContext, composioData, ragChunks, pappersResults] =
+      await Promise.all([
+        exaSearch(prompt.trim()),
+        getComposioContext(composioUserId),
+        getComposioDataForContext(composioUserId),
+        apiKey ? searchDocuments(prompt.trim(), apiKey, 6) : Promise.resolve([]),
+        PAPPERS_API_KEY
+          ? pappersSearch(prompt.trim(), PAPPERS_API_KEY, 5)
+          : Promise.resolve([] as PappersEntreprise[]),
+      ]);
+
+    const pappersContext = formatPappersContext(pappersResults);
 
     const ragContext =
       ragChunks.length > 0
@@ -1071,6 +1083,13 @@ app.post("/api/generate-from-prompt", async (req, res) => {
         author: r.author,
         excerpt: r.highlights?.[0] || (r.text ? r.text.slice(0, 260) : undefined),
       })),
+      ...pappersResults.map((e) => ({
+        title: `${e.nom_entreprise ?? "Entreprise"} (Pappers)`,
+        url: e.siren ? `https://www.pappers.fr/entreprise/${e.siren}` : undefined,
+        excerpt: e.chiffre_affaires != null
+          ? `CA: ${e.chiffre_affaires.toLocaleString("fr-FR")} € (${e.annee_chiffre_affaires ?? ""})`
+          : undefined,
+      })),
       ...ragChunks
         .filter((c) => c.source?.startsWith("http"))
         .map((c) => ({
@@ -1089,8 +1108,16 @@ app.post("/api/generate-from-prompt", async (req, res) => {
         {
           role: "system",
           content:
-            "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé.",
+            "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé. IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (ex: chiffre d'affaires, effectifs), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice, dates de publication). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.",
         },
+        ...(pappersContext
+          ? [
+              {
+                role: "system" as const,
+                content: pappersContext,
+              },
+            ]
+          : []),
         ...(exaContext
           ? [
               {
@@ -1186,12 +1213,18 @@ app.post("/api/chat", async (req, res) => {
     const composioUserId = await getComposioUserIdFromRequest(req);
     const intent = await classifyIntent(message.trim());
     const apiKey = process.env.OPENAI_API_KEY;
-    const [exaResults, composioContext, composioData, ragChunks] = await Promise.all([
-      exaSearch(message.trim()),
-      getComposioContext(composioUserId),
-      getComposioDataForContext(composioUserId),
-      apiKey ? searchDocuments(message.trim(), apiKey, 6) : Promise.resolve([]),
-    ]);
+    const [exaResults, composioContext, composioData, ragChunks, pappersResults] =
+      await Promise.all([
+        exaSearch(message.trim()),
+        getComposioContext(composioUserId),
+        getComposioDataForContext(composioUserId),
+        apiKey ? searchDocuments(message.trim(), apiKey, 6) : Promise.resolve([]),
+        PAPPERS_API_KEY
+          ? pappersSearch(message.trim(), PAPPERS_API_KEY, 5)
+          : Promise.resolve([] as PappersEntreprise[]),
+      ]);
+
+    const pappersContext = formatPappersContext(pappersResults);
     if (composioContext && !composioData && ragChunks.length === 0) {
       console.warn("[Composio] Comptes connectés mais aucune donnée récupérée — vérifier COMPOSIO_USER_ID et les connexions.");
     }
@@ -1230,8 +1263,18 @@ app.post("/api/chat", async (req, res) => {
       messages: [
         {
           role: "system",
-          content: buildSystemPrompt(intent),
+          content:
+            buildSystemPrompt(intent) +
+            " IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (CA, effectifs, etc.), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.",
         },
+        ...(pappersContext
+          ? [
+              {
+                role: "system" as const,
+                content: pappersContext,
+              },
+            ]
+          : []),
         ...(exaContext
           ? [
               {
@@ -1292,15 +1335,24 @@ app.post("/api/chat", async (req, res) => {
       }
 
       // Envoyer les sources à la fin
-      const sources = exaResults.map((result) => ({
-        title: result.title,
-        url: result.url,
-        publishedDate: result.publishedDate,
-        author: result.author,
-        excerpt:
-          result.highlights?.[0] ||
-          (result.text ? result.text.slice(0, 260) : undefined),
-      }));
+      const sources = [
+        ...exaResults.map((result) => ({
+          title: result.title,
+          url: result.url,
+          publishedDate: result.publishedDate,
+          author: result.author,
+          excerpt:
+            result.highlights?.[0] ||
+            (result.text ? result.text.slice(0, 260) : undefined),
+        })),
+        ...pappersResults.map((e) => ({
+          title: `${e.nom_entreprise ?? "Entreprise"} (Pappers)`,
+          url: e.siren ? `https://www.pappers.fr/entreprise/${e.siren}` : undefined,
+          excerpt: e.chiffre_affaires != null
+            ? `CA: ${e.chiffre_affaires.toLocaleString("fr-FR")} € (${e.annee_chiffre_affaires ?? ""})`
+            : undefined,
+        })),
+      ];
       res.write(`data: ${JSON.stringify({ type: "done", sources })}\n\n`);
     } catch (streamError) {
       console.error("Erreur streaming:", streamError);
@@ -1403,6 +1455,60 @@ app.post("/api/composio/connect", async (req, res) => {
     return res.status(link.status).json({ error: link.error });
   }
   return res.json({ redirect_url: link.data?.redirect_url });
+});
+
+/** Liste les dossiers Google Drive (root ou enfants d'un parent). */
+app.get("/api/drive/folders", async (req, res) => {
+  try {
+    const userId = await getComposioUserIdFromRequest(req);
+    const parentId = typeof req.query.parentId === "string" ? req.query.parentId : "root";
+    const [accounts, effectiveUserId] = await getComposioConnectedAccounts(userId);
+    const driveAccounts = accounts.filter(
+      (a) => a.toolkitSlug === "googledrive" || a.toolkitSlug === "google_drive"
+    );
+    if (driveAccounts.length === 0) {
+      return res.json({ folders: [], accounts: [] });
+    }
+
+    const toolUser = { user_id: effectiveUserId };
+    const allFolders: { id: string; name: string; accountId: string }[] = [];
+
+    for (const { id } of driveAccounts) {
+      const args: Record<string, unknown> = {
+        page_size: 50,
+        q: `'${parentId.replace(/['"]/g, "")}' in parents and mimeType='application/vnd.google-apps.folder'`,
+      };
+      let out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+        ...toolUser,
+        connected_account_id: id,
+        arguments: args,
+      }) as any;
+      if (!out?.files?.length && !out?.items?.length) {
+        out = await composioExecuteTool("GOOGLEDRIVE_LIST_FILES", {
+          ...toolUser,
+          connected_account_id: id,
+          arguments: { pageSize: 50 },
+        }) as any;
+      }
+      const items = out?.files ?? out?.items ?? out?.data ?? [];
+      const list = Array.isArray(items) ? items : [];
+      for (const f of list) {
+        const mime = String(f?.mimeType ?? f?.mime_type ?? "").toLowerCase();
+        if (!mime.includes("folder")) continue;
+        const fid = f?.id ?? f?.fileId ?? f?.file_id;
+        const name = f?.name ?? f?.title ?? f?.filename ?? "(Sans nom)";
+        if (fid) allFolders.push({ id: fid, name, accountId: id });
+      }
+    }
+
+    return res.json({
+      folders: allFolders,
+      accounts: driveAccounts.map((a) => ({ id: a.id, slug: a.toolkitSlug })),
+    });
+  } catch (err) {
+    logger.error({ err }, "[Drive] Erreur list folders");
+    return res.status(500).json({ error: "Erreur lors du chargement des dossiers." });
+  }
 });
 
 app.get("/api/rag/sync", (_req, res) => {

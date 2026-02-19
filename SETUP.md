@@ -53,7 +53,16 @@ COMPOSIO_USER_ID=room-local
 
 **COMPOSIO_USER_ID** : pas besoin de le configurer manuellement si tu utilises Clerk. Quand tu es connecté, ton **user_id Clerk** est automatiquement utilisé pour lier tes comptes (Drive, Gmail, etc.). `room-local` sert uniquement de fallback (ex. sans session ou mode partagé).
 
-### 6. Lancer l'application
+### 6. Configurer Pappers (données entreprises françaises)
+
+L'agent utilise l'API Pappers pour récupérer des données officielles (RCS, BODACC, INPI). Inscrivez-vous sur [pappers.fr/api](https://www.pappers.fr/api) pour obtenir un token.
+
+Ajoutez dans `.env` :
+```
+PAPPERS_API_KEY=votre_token_pappers
+```
+
+### 7. Lancer l'application
 
 **Option 1 : Frontend + Backend simultanément (recommandé)**
 ```bash
@@ -69,7 +78,7 @@ npm run dev
 npm run dev:server
 ```
 
-### 7. Accéder à l'application
+### 8. Accéder à l'application
 
 - **Frontend** : [http://localhost:3000](http://localhost:3000)
 - **Backend API** : [http://localhost:3001](http://localhost:3001)
