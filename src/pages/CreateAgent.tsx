@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import { Bot, Calendar, ChevronRight, FolderOpen, Sparkles, X } from 'lucide-react'
@@ -23,20 +23,94 @@ function getAppLabel(slug: string): string {
   return APP_LABELS[slug] ?? slug.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function getAppFavicon(slug: string): string {
+// Logos spécifiques par app (Simple Icons) - pas le logo générique du groupe
+const APP_ICON_SLUGS: Record<string, string> = {
+  googledrive: 'googledrive',
+  google_drive: 'googledrive',
+  gmail: 'gmail',
+  googlesheets: 'googlesheets',
+  google_sheets: 'googlesheets',
+  googledocs: 'googledocs',
+  google_docs: 'googledocs',
+  onedrive: 'microsoftonedrive',
+  one_drive: 'microsoftonedrive',
+  outlook: 'microsoftoutlook',
+  microsoft_outlook: 'microsoftoutlook',
+  notion: 'notion',
+  slack: 'slack',
+  zoom: 'zoom',
+  dropbox: 'dropbox',
+  hubspot: 'hubspot',
+  salesforce: 'salesforce',
+  linkedin: 'linkedin',
+}
+
+function getAppLogoCandidates(slug: string, customUrls?: { logo?: string; icon?: string }): string[] {
+  const candidates: string[] = []
+  if (customUrls?.logo) candidates.push(customUrls.logo)
+  if (customUrls?.icon) candidates.push(customUrls.icon)
+  const norm = slug.toLowerCase().replace(/-/g, '_')
+  const iconSlug = APP_ICON_SLUGS[norm] ?? norm.replace(/_/g, '')
+  if (iconSlug) {
+    candidates.push(`https://cdn.simpleicons.org/${iconSlug}`)
+    candidates.push(`https://cdn.jsdelivr.net/npm/simple-icons@v9/icons/${iconSlug}.svg`)
+  }
   const domain =
-    slug === 'googledrive' || slug === 'google_drive'
+    norm === 'googledrive' || norm === 'google_drive'
       ? 'drive.google.com'
-      : slug === 'gmail'
+      : norm === 'gmail'
         ? 'mail.google.com'
-        : slug === 'googlesheets' || slug === 'google_sheets'
+        : norm === 'googlesheets' || norm === 'google_sheets'
           ? 'sheets.google.com'
-          : slug === 'onedrive' || slug === 'one_drive'
+          : norm === 'onedrive' || norm === 'one_drive'
             ? 'onedrive.live.com'
-            : slug === 'outlook' || slug === 'microsoft_outlook'
+            : norm === 'outlook' || norm === 'microsoft_outlook'
               ? 'outlook.com'
-              : `${slug}.com`
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`
+              : `${iconSlug || norm}.com`
+  candidates.push(`https://logo.clearbit.com/${domain}`)
+  candidates.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=64`)
+  return candidates
+}
+
+function AppLogo({
+  slug,
+  logo,
+  icon,
+  className = '',
+}: {
+  slug: string
+  logo?: string
+  icon?: string
+  className?: string
+}) {
+  const candidates = useMemo(
+    () => getAppLogoCandidates(slug, logo || icon ? { logo, icon } : undefined),
+    [slug, logo, icon]
+  )
+  const [index, setIndex] = useState(0)
+  const label = getAppLabel(slug).slice(0, 2).toUpperCase()
+  const src = candidates[index]
+
+  if (!src) {
+    return (
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-semibold text-gray-600 ${className}`}
+      >
+        {label}
+      </div>
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt={getAppLabel(slug)}
+      className={`h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-1 shadow-sm ${className}`}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setIndex((prev) => (prev + 1 < candidates.length ? prev + 1 : 0))}
+    />
+  )
 }
 
 export type AgentConfig = {
@@ -78,7 +152,7 @@ export default function CreateAgent() {
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
   const [connectedAccounts, setConnectedAccounts] = useState<
-    Array<{ id: string; slug: string; name?: string }>
+    Array<{ id: string; slug: string; name?: string; logo?: string; icon?: string }>
   >([])
   const [folderModalOpen, setFolderModalOpen] = useState(false)
   const [folders, setFolders] = useState<DriveFolder[]>([])
@@ -98,14 +172,42 @@ export default function CreateAgent() {
       const data = await parseJsonResponse(res)
       if (!res.ok) throw new Error(String(data?.error || 'Erreur'))
       const items = Array.isArray(data?.items) ? data.items : []
+      const slugNorm = (s: string) => {
+        const n = s.toLowerCase().replace(/-/g, '_')
+        const aliases: Record<string, string> = {
+          google_drive: 'googledrive',
+          one_drive: 'onedrive',
+          microsoft_outlook: 'outlook',
+          google_sheets: 'googlesheets',
+        }
+        return aliases[n] ?? n
+      }
+      const seen = new Set<string>()
       const accounts = items
         .map((item: any) => {
           const slug =
             item?.toolkit?.slug || item?.toolkit_slug || item?.toolkit || item?.slug
           const id = item?.id ?? item?.connected_account_id
-          return slug && id ? { id, slug: String(slug), name: item?.toolkit?.name } : null
+          if (!slug || !id) return null
+          const key = slugNorm(String(slug))
+          if (seen.has(key)) return null
+          seen.add(key)
+          const toolkit = item?.toolkit
+          return {
+            id,
+            slug: String(slug),
+            name: toolkit?.name,
+            logo: toolkit?.logo || toolkit?.logo_url,
+            icon: toolkit?.icon || toolkit?.icon_url || toolkit?.meta?.logo,
+          }
         })
-        .filter(Boolean) as { id: string; slug: string; name?: string }[]
+        .filter(Boolean) as {
+          id: string
+          slug: string
+          name?: string
+          logo?: string
+          icon?: string
+        }[]
       setConnectedAccounts(accounts)
     } catch {
       setConnectedAccounts([])
@@ -329,11 +431,7 @@ export default function CreateAgent() {
                       : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
                   }`}
                 >
-                  <img
-                    src={getAppFavicon(acc.slug)}
-                    alt=""
-                    className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-1 shadow-sm"
-                  />
+                  <AppLogo slug={acc.slug} logo={acc.logo} icon={acc.icon} />
                   <div className="min-w-0 flex-1">
                     <span
                       className={`block truncate text-sm font-medium ${
