@@ -137,18 +137,35 @@ async function parseJsonResponse(res: Response): Promise<Record<string, unknown>
   }
 }
 
-export default function CreateAgent() {
+type CreateAgentProps = {
+  initialAgent?: AgentConfig
+}
+
+export default function CreateAgent({ initialAgent }: CreateAgentProps = {}) {
   const { getToken } = useAuth()
   const navigate = useNavigate()
-  const [prompt, setPrompt] = useState('')
-  const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
+  const isEdit = !!initialAgent
+  const [prompt, setPrompt] = useState(initialAgent?.prompt ?? '')
+  const [selectedApps, setSelectedApps] = useState<Set<string>>(
+    new Set(initialAgent?.appSlugs ?? [])
+  )
   const [selectedFolder, setSelectedFolder] = useState<{
     id: string
     name: string
     path: string
-  } | null>(null)
-  const [recurrence, setRecurrence] = useState<AgentConfig['recurrence']>('daily')
-  const [time, setTime] = useState('09:00')
+  } | null>(
+    initialAgent?.driveFolderId && initialAgent?.driveFolderName
+      ? {
+          id: initialAgent.driveFolderId,
+          name: initialAgent.driveFolderName,
+          path: initialAgent.driveFolderPath ?? initialAgent.driveFolderName,
+        }
+      : null
+  )
+  const [recurrence, setRecurrence] = useState<AgentConfig['recurrence']>(
+    initialAgent?.recurrence ?? 'daily'
+  )
+  const [time, setTime] = useState(initialAgent?.time ?? '09:00')
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
   const [connectedAccounts, setConnectedAccounts] = useState<
@@ -313,7 +330,7 @@ export default function CreateAgent() {
     try {
       const fullPath = selectedFolder?.path ?? selectedFolder?.name ?? null
       const agent: AgentConfig = {
-        id: crypto.randomUUID(),
+        id: initialAgent?.id ?? crypto.randomUUID(),
         name: prompt.trim().slice(0, 60) || 'Agent',
         prompt: prompt.trim(),
         appSlugs: Array.from(selectedApps),
@@ -322,17 +339,31 @@ export default function CreateAgent() {
         driveFolderPath: fullPath,
         recurrence,
         time,
-        createdAt: new Date().toISOString(),
+        createdAt: initialAgent?.createdAt ?? new Date().toISOString(),
       }
       const raw = localStorage.getItem(STORAGE_KEY)
       const list: AgentConfig[] = raw ? (JSON.parse(raw) as AgentConfig[]) : []
-      list.unshift(agent)
+      if (isEdit) {
+        const idx = list.findIndex((a) => a.id === agent.id)
+        if (idx >= 0) list[idx] = agent
+      } else {
+        list.unshift(agent)
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
       setSubmitStatus('success')
-      navigate('/tasks')
+      navigate('/agents')
     } catch {
       setSubmitStatus('error')
     }
+  }
+
+  const handleDelete = () => {
+    if (!initialAgent || !confirm('Supprimer cet agent ?')) return
+    const raw = localStorage.getItem(STORAGE_KEY)
+    const list: AgentConfig[] = raw ? (JSON.parse(raw) as AgentConfig[]) : []
+    const filtered = list.filter((a) => a.id !== initialAgent.id)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered))
+    navigate('/agents')
   }
 
   const recurrenceLabels: Record<AgentConfig['recurrence'], string> = {
@@ -350,9 +381,13 @@ export default function CreateAgent() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Créer un agent IA</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          {isEdit ? 'Modifier l\'agent' : 'Créer un agent IA'}
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
-          Configurez un agent avec un prompt précis, des applications et un dossier Drive.
+          {isEdit
+            ? 'Modifiez la configuration de votre agent.'
+            : 'Configurez un agent avec un prompt précis, des applications et un dossier Drive.'}
         </p>
       </div>
 
@@ -600,7 +635,7 @@ export default function CreateAgent() {
 
         {submitStatus === 'success' && (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-            Agent créé. Redirection vers les tâches...
+            {isEdit ? 'Agent mis à jour.' : 'Agent créé.'} Redirection...
           </div>
         )}
         {submitStatus === 'error' && (
@@ -609,21 +644,40 @@ export default function CreateAgent() {
           </div>
         )}
 
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/tasks')}
-            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Annuler
-          </button>
-          <button
-            type="submit"
-            disabled={submitStatus === 'loading' || !prompt.trim()}
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {submitStatus === 'loading' ? 'Création...' : "Créer l'agent"}
-          </button>
+        <div className="flex justify-between">
+          <div>
+            {isEdit && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+              >
+                Supprimer
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/agents')}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={submitStatus === 'loading' || !prompt.trim()}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {submitStatus === 'loading'
+                ? isEdit
+                  ? 'Enregistrement...'
+                  : 'Création...'
+                : isEdit
+                  ? 'Enregistrer'
+                  : "Créer l'agent"}
+            </button>
+          </div>
         </div>
       </form>
     </div>

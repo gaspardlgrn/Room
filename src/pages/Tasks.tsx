@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bot, Plus } from 'lucide-react'
+import { Bot, ChevronRight, Plus } from 'lucide-react'
 import type { AgentConfig } from './CreateAgent'
 
 const STORAGE_KEY = 'agents:list'
@@ -37,13 +37,21 @@ export default function Tasks() {
             Créez des agents IA récurrents pour automatiser vos recherches et analyses
           </p>
         </div>
-        <Link
-          to="/agents/create"
-          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-        >
-          <Plus className="h-4 w-4" />
-          Créer un agent
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/agents"
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Gérer les agents
+          </Link>
+          <Link
+            to="/agents/create"
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+          >
+            <Plus className="h-4 w-4" />
+            Créer un agent
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -65,7 +73,11 @@ export default function Tasks() {
         ) : (
           <div className="mt-3 divide-y divide-gray-100">
             {agents.map((agent) => (
-              <div key={agent.id} className="flex items-center justify-between py-3">
+              <Link
+                key={agent.id}
+                to={`/agents/${agent.id}`}
+                className="flex items-center justify-between py-3 transition-colors hover:bg-gray-50"
+              >
                 <div>
                   <div className="text-sm font-medium text-gray-900">{agent.name}</div>
                   <div className="mt-0.5 text-xs text-gray-500">
@@ -78,7 +90,8 @@ export default function Tasks() {
                     )}
                   </div>
                 </div>
-              </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-gray-400" />
+              </Link>
             ))}
           </div>
         )}
