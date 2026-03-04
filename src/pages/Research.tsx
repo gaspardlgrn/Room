@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/clerk-react";
 import { ExternalLink } from "lucide-react";
-import { getRoomAgentPrompts } from "@/lib/roomAgents";
+import { getPreferredAgent, getRoomAgentPrompts } from "@/lib/roomAgents";
 import MarkdownAnswer from "../components/MarkdownAnswer";
 import SourcesPanel from "../components/SourcesPanel";
 
@@ -126,13 +126,14 @@ export default function Research() {
     try {
       const token = await getToken();
       const additionalPrompts = getRoomAgentPrompts();
+      const preferredAgentId = getPreferredAgent() || undefined;
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message: messageText, additionalPrompts }),
+        body: JSON.stringify({ message: messageText, additionalPrompts, preferredAgentId }),
         credentials: "include",
       });
 

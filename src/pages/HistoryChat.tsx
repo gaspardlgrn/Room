@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
-import { getRoomAgentPrompts } from '@/lib/roomAgents'
+import { getPreferredAgent, getRoomAgentPrompts } from '@/lib/roomAgents'
 import { Download, ExternalLink, Loader2 } from 'lucide-react'
 import MarkdownAnswer from '../components/MarkdownAnswer'
 import OfficeLogo from '../components/OfficeLogo'
@@ -50,6 +50,7 @@ export default function HistoryChat() {
       try {
         const token = await getToken()
         const additionalPrompts = getRoomAgentPrompts()
+        const preferredAgentId = getPreferredAgent() || undefined
         const res = await fetch('/api/generate-from-prompt', {
           method: 'POST',
           headers: {
@@ -57,7 +58,7 @@ export default function HistoryChat() {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: 'include',
-          body: JSON.stringify({ prompt: docMsg.prompt, additionalPrompts }),
+          body: JSON.stringify({ prompt: docMsg.prompt, additionalPrompts, preferredAgentId }),
         })
         if (!res.ok) {
           const data = await res.json().catch(() => ({}))
@@ -208,13 +209,14 @@ export default function HistoryChat() {
     try {
       const token = await getToken()
       const additionalPrompts = getRoomAgentPrompts()
+      const preferredAgentId = getPreferredAgent() || undefined
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message: messageText, additionalPrompts }),
+        body: JSON.stringify({ message: messageText, additionalPrompts, preferredAgentId }),
         credentials: 'include',
       })
 

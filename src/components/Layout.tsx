@@ -12,6 +12,12 @@ import {
   Settings,
   Shield,
 } from 'lucide-react'
+import {
+  SEARCH_AGENTS,
+  getPreferredAgent,
+  setPreferredAgent,
+  type RoomAgentId,
+} from '@/lib/roomAgents'
 import { SignOutButton, useUser } from '@clerk/clerk-react'
 import { RecentDocumentsProvider } from '@/state/recentDocuments'
 
@@ -41,6 +47,9 @@ function LayoutContent() {
     { id: 6, label: 'Create a proofreading prompt' },
   ]
   const [historyItems, setHistoryItems] = useState(defaultHistoryItems)
+  const [preferredAgent, setPreferredAgentState] = useState<RoomAgentId | ''>(() =>
+    getPreferredAgent()
+  )
 
   const loadHistoryItems = () => {
     try {
@@ -63,6 +72,11 @@ function LayoutContent() {
   // Recharger les history items quand on navigue (pour détecter les nouvelles conversations)
   useEffect(() => {
     loadHistoryItems()
+  }, [location.pathname])
+
+  // Synchroniser l'agent préféré avec le storage (ex: sélection depuis le Dashboard)
+  useEffect(() => {
+    setPreferredAgentState(getPreferredAgent())
   }, [location.pathname])
 
   useEffect(() => {
@@ -153,6 +167,28 @@ function LayoutContent() {
           {!sidebarCollapsed ? (
             <div className="px-3 py-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Agent IA
+              </div>
+              <div className="mt-2">
+                <select
+                  value={preferredAgent}
+                  onChange={(e) => {
+                    const v = e.target.value as RoomAgentId | ''
+                    setPreferredAgentState(v)
+                    setPreferredAgent(v)
+                  }}
+                  className="w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  title="Sélectionner un agent pour préciser le besoin"
+                >
+                  <option value="">Automatique</option>
+                  {SEARCH_AGENTS.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
                 History
               </div>
               <div className="mt-2">

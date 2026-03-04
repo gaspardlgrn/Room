@@ -1,10 +1,19 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Send, Sparkles } from 'lucide-react'
+import {
+  SEARCH_AGENTS,
+  getPreferredAgent,
+  setPreferredAgent,
+  type RoomAgentId,
+} from '@/lib/roomAgents'
 
 export default function Dashboard() {
   const [prompt, setPrompt] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [preferredAgent, setPreferredAgentState] = useState<RoomAgentId | ''>(() =>
+    getPreferredAgent()
+  )
   const navigate = useNavigate()
 
   const handleSend = () => {
@@ -54,9 +63,28 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-6 w-full max-w-2xl rounded-2xl border border-gray-200 !bg-white px-4 py-3 shadow-sm">
-        <div className="flex items-center gap-2 text-[11px] text-gray-400">
-          <Sparkles className="h-3 w-3" />
-          Ask Room anything...
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[11px] text-gray-400">
+            <Sparkles className="h-3 w-3" />
+            Ask Room anything...
+          </div>
+          <select
+            value={preferredAgent}
+            onChange={(e) => {
+              const v = e.target.value as RoomAgentId | ''
+              setPreferredAgentState(v)
+              setPreferredAgent(v)
+            }}
+            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] text-gray-600 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            title="Sélectionner un agent pour préciser le besoin"
+          >
+            <option value="">Automatique</option>
+            {SEARCH_AGENTS.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="mt-3 flex items-center gap-3">
           <input

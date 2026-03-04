@@ -1025,10 +1025,11 @@ async function detectDocumentFormat(prompt: string): Promise<GenerateFromPromptF
 
 app.post("/api/generate-from-prompt", async (req, res) => {
   try {
-    const { prompt, format, additionalPrompts } = req.body as {
+    const { prompt, format, additionalPrompts, preferredAgentId } = req.body as {
       prompt?: string;
       format?: GenerateFromPromptFormat;
       additionalPrompts?: Record<string, string>;
+      preferredAgentId?: string;
     };
     if (!prompt?.trim()) {
       return res.status(400).json({ error: "Prompt requis." });
@@ -1105,9 +1106,20 @@ app.post("/api/generate-from-prompt", async (req, res) => {
     const title = prompt.trim().slice(0, 100);
     const docBaseSystem =
       "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé. IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (ex: chiffre d'affaires, effectifs), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice, dates de publication). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.";
+    const structureHints: Record<string, string> = {
+      market_analysis: "Structure le document comme une analyse de marché: Contexte, Taille de marché (TAM/SAM/SOM), Tendances, Concurrence, Modèles économiques, Risques, Recommandations.",
+      company_analysis: "Structure le document comme une analyse d'entreprise: Description, Positionnement, Produits, Clients, KPIs, Finances, Concurrents, Moat, Risques, Catalyseurs, Recommandations.",
+      ic_memo: "Structure le document comme un IC memo: Executive Summary, Thesis, Marche, Produit, Traction/KPIs, Business Model, Unit Economics, Concurrence, Equipe, Risques, Deal Terms, Recommandation.",
+      info_memo: "Structure le document comme un info memo: Résumé, Contexte, Société, Marche, Produit, Clients, Traction, Finances, Projections, Risques, Calendrier.",
+      exit_analysis: "Structure le document comme une analyse de sortie: Options de sortie, Acquéreurs stratégiques, Comparables, Timing, Multiples, Scénarios.",
+      valuation_comps: "Structure le document comme un tableau de comparables: Méthodologie comps, Liste de comparables, Tableau de multiples (EV/Revenue, EV/EBITDA, P/E), Analyse.",
+    };
+    const structureHint = preferredAgentId && structureHints[preferredAgentId];
     const docExtraPrompt =
       additionalPrompts && typeof additionalPrompts === "object" && additionalPrompts["doc_generation"]?.trim();
-    const docSystemContent = docExtraPrompt ? `${docBaseSystem}\n\nInstructions supplémentaires: ${docExtraPrompt}` : docBaseSystem;
+    let docSystemContent = docBaseSystem;
+    if (structureHint) docSystemContent += `\n\nInstructions de structure: ${structureHint}`;
+    if (docExtraPrompt) docSystemContent += `\n\nInstructions supplémentaires: ${docExtraPrompt}`;
 
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
@@ -1208,9 +1220,10 @@ app.post("/api/generate-from-prompt", async (req, res) => {
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message, additionalPrompts } = req.body as {
+    const { message, additionalPrompts, preferredAgentId } = req.body as {
       message?: string;
       additionalPrompts?: Record<string, string>;
+      preferredAgentId?: string;
     };
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Message requis." });
@@ -1220,7 +1233,10 @@ app.post("/api/chat", async (req, res) => {
     }
 
     const composioUserId = await getComposioUserIdFromRequest(req);
-    const intent = await classifyIntent(message.trim());
+    const validTaskTypes = ["market_analysis", "company_analysis", "ic_memo", "info_memo", "exit_analysis", "valuation_comps", "general"] as const;
+    const intent = validTaskTypes.includes(preferredAgentId as any)
+      ? { taskType: preferredAgentId as typeof validTaskTypes[number], needsWeb: true }
+      : await classifyIntent(message.trim());
     const apiKey = process.env.OPENAI_API_KEY;
     const [exaResults, composioContext, composioData, ragChunks, pappersResults] =
       await Promise.all([

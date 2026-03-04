@@ -63,3 +63,33 @@ export function setRoomAgentPrompt(agentId: RoomAgentId, prompt: string): void {
 export function getRoomAgentPrompt(agentId: RoomAgentId): string {
   return getRoomAgentPrompts()[agentId] ?? ''
 }
+
+const PREFERRED_AGENT_KEY = 'chat:preferred-agent'
+
+/** Agent préféré pour identifier le besoin (sidebar/home). '' = automatique. */
+export function getPreferredAgent(): RoomAgentId | '' {
+  try {
+    const raw = localStorage.getItem(PREFERRED_AGENT_KEY)
+    if (!raw) return ''
+    const id = raw as RoomAgentId
+    return ROOM_AI_AGENTS.some((a) => a.id === id) ? id : ''
+  } catch {
+    return ''
+  }
+}
+
+export function setPreferredAgent(agentId: RoomAgentId | ''): void {
+  if (agentId) {
+    localStorage.setItem(PREFERRED_AGENT_KEY, agentId)
+  } else {
+    localStorage.removeItem(PREFERRED_AGENT_KEY)
+  }
+}
+
+/** Agents pertinents pour la barre de recherche (chat + documents). */
+export const SEARCH_AGENTS = ROOM_AI_AGENTS.filter(
+  (a) =>
+    a.id !== 'intent_router' &&
+    a.id !== 'expert_call' &&
+    a.id !== 'meeting_note'
+)
