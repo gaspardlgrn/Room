@@ -1025,9 +1025,10 @@ async function detectDocumentFormat(prompt: string): Promise<GenerateFromPromptF
 
 app.post("/api/generate-from-prompt", async (req, res) => {
   try {
-    const { prompt, format } = req.body as {
+    const { prompt, format, additionalPrompts } = req.body as {
       prompt?: string;
       format?: GenerateFromPromptFormat;
+      additionalPrompts?: Record<string, string>;
     };
     if (!prompt?.trim()) {
       return res.status(400).json({ error: "Prompt requis." });
@@ -1102,13 +1103,18 @@ app.post("/api/generate-from-prompt", async (req, res) => {
     const fmt =
       format === "xlsx" ? "xlsx" : format === "pptx" ? "pptx" : await detectDocumentFormat(prompt.trim());
     const title = prompt.trim().slice(0, 100);
+    const docBaseSystem =
+      "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé. IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (ex: chiffre d'affaires, effectifs), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice, dates de publication). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.";
+    const docExtraPrompt =
+      additionalPrompts && typeof additionalPrompts === "object" && additionalPrompts["doc_generation"]?.trim();
+    const docSystemContent = docExtraPrompt ? `${docBaseSystem}\n\nInstructions supplémentaires: ${docExtraPrompt}` : docBaseSystem;
+
     const completion = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
-          content:
-            "Tu es un analyste financier. Réponds en français, de manière structurée avec des titres (##) et des paragraphes. Pour les tableaux, utilise des lignes avec des tabulations entre les colonnes. Produis un contenu professionnel et détaillé. IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (ex: chiffre d'affaires, effectifs), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice, dates de publication). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.",
+          content: docSystemContent,
         },
         ...(pappersContext
           ? [
@@ -1202,7 +1208,10 @@ app.post("/api/generate-from-prompt", async (req, res) => {
 
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message } = req.body as { message?: string };
+    const { message, additionalPrompts } = req.body as {
+      message?: string;
+      additionalPrompts?: Record<string, string>;
+    };
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Message requis." });
     }
@@ -1258,14 +1267,19 @@ app.post("/api/chat", async (req, res) => {
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no"); // Désactiver le buffering pour nginx
 
+    const baseSystem =
+      buildSystemPrompt(intent) +
+      " IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (CA, effectifs, etc.), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.";
+    const extraPrompt =
+      additionalPrompts && typeof additionalPrompts === "object" && additionalPrompts[intent.taskType]?.trim();
+    const systemContent = extraPrompt ? `${baseSystem}\n\nInstructions supplémentaires: ${extraPrompt}` : baseSystem;
+
     const stream = await openai.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4-turbo-preview",
       messages: [
         {
           role: "system",
-          content:
-            buildSystemPrompt(intent) +
-            " IMPORTANT: Quand plusieurs sources fournissent des données contradictoires (CA, effectifs, etc.), privilégie TOUJOURS la donnée la plus récente (vérifie les dates d'exercice). Les données Pappers (RCS, BODACC, INPI) sont des sources officielles françaises à jour.",
+          content: systemContent,
         },
         ...(pappersContext
           ? [
