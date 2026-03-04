@@ -8,7 +8,7 @@ const STORAGE_KEY = 'agents:list'
 export default function AgentDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const [agent, setAgent] = useState<AgentConfig | null>(undefined)
+  const [agent, setAgent] = useState<AgentConfig | null | undefined>(undefined)
 
   useEffect(() => {
     if (!id) {
