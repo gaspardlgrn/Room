@@ -11,7 +11,6 @@ import {
   Search,
   Settings,
   Shield,
-  Sparkles,
 } from 'lucide-react'
 import { SignOutButton, useUser } from '@clerk/clerk-react'
 import { RecentDocumentsProvider } from '@/state/recentDocuments'
@@ -31,7 +30,6 @@ function LayoutContent() {
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
     { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
     { name: 'Mes agents', href: '/agents', icon: Bot },
-    { name: 'Shortcuts', href: '/settings', icon: Sparkles },
     { name: 'History', href: '/history/1', icon: History },
     ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ]
