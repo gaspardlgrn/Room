@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import {
   Bot,
   CalendarClock,
-  FileText,
   HelpCircle,
   History,
   Home,
@@ -29,7 +28,6 @@ function LayoutContent() {
 
   const navigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
-    { name: 'Incognito File Chat', href: '/research', icon: FileText },
     { name: 'Tables', href: '/dashboard', icon: LayoutGrid },
     { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
     { name: 'Mes agents', href: '/agents', icon: Bot },
