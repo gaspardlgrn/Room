@@ -31,7 +31,6 @@ function LayoutContent() {
     { name: 'Scheduled Tasks', href: '/tasks', icon: CalendarClock },
     { name: 'Mes agents', href: '/agents', icon: Bot },
     { name: 'History', href: '/history/1', icon: History },
-    ...(isAdminUser ? [{ name: 'Admin', href: '/admin', icon: Shield }] : []),
   ]
   const defaultHistoryItems = [
     { id: 1, label: 'Create comps table for FDS' },
@@ -268,6 +267,17 @@ function LayoutContent() {
                         <Settings className="h-4 w-4 text-gray-500" />
                         Paramètres
                       </Link>
+                      {isAdminUser ? (
+                        <Link
+                          to="/admin"
+                          onClick={() => setProfileMenuOpen(false)}
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          role="menuitem"
+                        >
+                          <Shield className="h-4 w-4 text-gray-500" />
+                          Admin
+                        </Link>
+                      ) : null}
                       <SignOutButton redirectUrl="/login">
                         <button
                           type="button"
